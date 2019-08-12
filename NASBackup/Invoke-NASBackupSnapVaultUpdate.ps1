@@ -34,10 +34,13 @@
    Invoke-NASBackupSnapVaultUpdate.ps1 -SourceCluster 192.168.1.220 -SourceSVM "lab-netapp94-svm1" -SourceVolume "vol_cifs" -SourceClusterCredentials "C:\scripts\saved_credentials_SYSTEM.xml" -DestinationCluster 192.168.1.220 -DestinationSVM "lab-netapp94-svm1" -DestinationVolume "vol_cifs_vault" -DestinationClusterCredentials "C:\scripts\saved_credentials_SYSTEM.xml"
 
    .Notes 
-   NAME       : Invoke-NASBackupSnapVaultUpdate
-   Author     : Marco Horstmann, Veeam Software GmbH (marco.horstmann@veeam.com)
-   LASTEDIT   : 12-08-2019 
+   Version:        1.0
+   Author:         Marco Horstmann (marco.horstmann@veeam.com)
+   Creation Date:  <Date>
+   Purpose/Change: Initial script development
    
+   .LINK https://github.com/marcohorstmann/psscripts/tree/master/NASBackup
+   .LINK https://horstmann.in
  #> 
 Param(
    [Parameter(Mandatory=$True)]
@@ -70,13 +73,12 @@ Param(
    [Parameter(Mandatory=$False)]
    [string]$LogPath="C:\ProgramData\Veeam\Backup",
 
-   [Parameter(Mandatory=$False,HelpMessage="Keep the last X previous snapshots on destination volume.")]
+   [Parameter(Mandatory=$False)]
    [int]$RetainLastDestinationSnapshots=2
-#>
 )
 
 
-#### start of log handling
+#### start of log handling code
 #### This section is used to write logs for the operation
 $logdate = get-date -format "yyyy-MM-dd-HH-mm"
 $logfile = ("NASScriptSnapLog_" + $logdate + ".log")
@@ -106,26 +108,21 @@ function Write-Log([string]$logtext, [int]$level=0)
 	$text >> $logfilename
 }
 
-# [INFO] log something
-#Write-Log "this is a simple log test"
+# Cleanup log folder (delete old logs exept the newest 10 logs)
+$logpathandprefix = $Logpath + "\NASScriptSnapLog_*"
+Get-Item -Path $logpathandprefix | Sort-Object -Descending CreationTime |  Select-Object -Skip 10 | Remove-Item
 
-# create warning log entry
-#Write-Log "this is a simple log test" 1
+#### End of log handling code
 
-# create error log entry
-#Write-Log "this is a simple log test" 2
-
-# use more than simple variables in a string
-#$cmds = get-command
-#Write-Log "there are $($cmds.count) commands available"
-
-##### End of Log Module
-
-
-
-####### Eigentlicher Workload
-
-Import-Module DataONTAP
+# Import NetApp Powershell Plugins
+Write-Log "Trying to load NetApp Powershell module"
+try {
+   Import-Module DataONTAP
+   Write-Log "Loaded NetApp Powershell module sucessfully"
+} catch  {
+   Write-Log "$_" 2
+   Write-Log "Loading NetApp Powershell module failed" 2
+}
 
 #Connecting to source cluster (TODO: Maybe a SVM Only connect works with later Ontap Versions?)
 try {
@@ -175,9 +172,8 @@ if($SourceCluster -eq $DestinationCluster ) {
    }
 }
 
-
+#Generate Snapshotname for the previous snapshot on source system
 $OldSnapshotName = $SnapshotName + "OLD"
-
 # If an Snapshot with the name from $OldSnapshotName varible exists delete it
 if(get-NcSnapshot -Vserver $SourceSVM -Volume $SourceVolume -Snapshot $OldSnapshotName -Verbose) {
     Write-Log "Previous Snapshot exists and will be removed..."
@@ -225,6 +221,7 @@ try {
   Invoke-NcSnapmirrorUpdate -DestinationVserver $DestinationSVM -DestinationVolume $DestinationVolume -SourceSnapshot $SnapshotName
   Write-Log "Waiting for SV Transfer to finish..."
   Start-Sleep 20
+  # Check every 30 seconds if snapvault relationship is in idle state
   while (get-ncsnapmirror -DestinationVserver $DestinationSVM -DestinationVolume $DestinationVolume | ? { $_.Status -ine "idle" } ) {
     Write-Log "Waiting for SV Transfer to finish..."
     Start-Sleep -seconds 30
@@ -240,9 +237,11 @@ $SnapshotNameWithDate = $SnapshotName + "_*"
 #cleanup Snapshots on Destination
 Write-Log "Starting with cleaning up destination snapshots"
 try {
+  # Get the snapshots from destination and delete all snapshots created by this script and maybe retain X snapshots depending on parameter RetainLastDestinationSnapshots
   get-NcSnapshot -Vserver $DestinationSVM -Volume $DestinationVolume -Snapshot $SnapshotNameWithDate | Sort-Object -Property Created -Descending | Select-Object -Skip $RetainLastDestinationSnapshots | Remove-NcSnapshot -Confirm:$false
   Write-Log "Old Snapshots was cleaned up"
 } catch {
   Write-Log "$_" 2
   Write-Log "Snapshots couldn't be cleaned up at destination volume" 2
 }
+
