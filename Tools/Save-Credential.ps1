@@ -17,7 +17,7 @@
    The file named "credential.xml" is located in "C:\scripts\"
  
    .EXAMPLE
-   Sometimes it is needed that later e.g. an powershell script which is
+   Sometimes it is needed that later a powershell script which is
    running in "LOCAL SYSTEM" context to use such Credentials. For this
    we need to run this script in "LOCAL SYSTEM" security context.
 
