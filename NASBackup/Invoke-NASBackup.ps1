@@ -225,7 +225,10 @@ PROCESS {
   {
     #transfer snapshot to the destination system
       try {
-        Invoke-NcSnapmirrorUpdate -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume -SourceSnapshot $PrimarySnapshotName
+        Write-Log -Info "SecondarySVM: $SecondarySVM" -Status Info
+        Write-Log -Info "SecondaryVolume: $SecondaryVolume" -Status Info
+        Write-Log -Info "Snapshot: $PrimarySnapshotName" -Status Info
+        Invoke-NcSnapmirrorUpdate -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume -SourceSnapshot $PrimarySnapshotName -Verbose
         Write-Log -Info "Waiting for SV Transfer to finish..." -Status Info
         Start-Sleep 20
         # Check every 30 seconds if snapvault relationship is in idle state
@@ -260,7 +263,11 @@ PROCESS {
     {
         Set-Variable -Name $key -Value $PSBoundParameters."$key" -Scope 0
     }
-
+  #
+  # ToDo Add Fuction to see when a new session was started
+  #
+  #
+  #
   Load-NetAppModule
   #Connect to the NetApp system
   Connect-NetAppSystem -clusterName $PrimaryCluster -svmName $PrimarySVM -clusterCredential $PrimaryClusterCredentials
@@ -269,13 +276,9 @@ PROCESS {
   {
     Connect-NetAppSystem -clusterName $SecondaryCluster -svmName $SecondarySVM -clusterCredential $SecondaryCredentials
   }
-  if($UseSecondaryDestination)
-  {
-
-  }
   #Get the name of the volume from share (ToDo: Check if Junction paths are used)
   $PrimaryVolume = Get-NetAppVolumeFromShare -SVM $PrimarySVM -Share $PrimaryShare
-
+ 
   if($UseSecondaryDestination)
   {
     #If using Snapvault or SnapMirror we cannot just delete the snapshot. We need to rename
@@ -286,7 +289,7 @@ PROCESS {
     # Rename exisiting Snapshot to $OldSnapshotName
     Rename-NetAppSnapshot -SnapshotName $SnapshotName -NewSnapshotName $OldSnapshotName -SVM $PrimarySVM -Volume $PrimaryVolume
     Create-NetAppSnapshot -SnapshotName $SnapshotName -SVM $PrimarySVM -Volume $PrimaryVolume
-    Start-NetAppSync -SecondarySVM $SecondarySVM -SecondaryVolume $SecondaryVolume -SourceSnapshotName $SnapshotName
+    Start-NetAppSync -SecondarySVM $SecondarySVM -SecondaryVolume $SecondaryVolume -PrimarySnapshotName $SnapshotName
     Cleanup-SecondaryDestination -SecondarySVM $SecondarySVM -SecondaryVolume $SecondaryVolume -SourceSnapshotName $SnapshotName
     ###
   } else {
