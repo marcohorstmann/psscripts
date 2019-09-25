@@ -159,28 +159,29 @@ PROCESS {
     try {
         $Credential = Import-CliXml -Path $clusterCredential -ErrorAction Stop  
         #Connect-NcController -name $System -Vserver $svmName -Credential $Credential -HTTPS -ErrorAction Stop
-        Connect-NcController -name $clusterName -Vserver $svmName -Credential $Credential -HTTPS -ErrorAction Stop
+        $ControllerSession = Connect-NcController -name $clusterName -Vserver $svmName -Credential $Credential -HTTPS -ErrorAction Stop
         Write-Log -Info "Connection established to $svmName on cluster $clusterName" -Status Info
     } catch {
         # Error handling if connection fails  
         Write-Log -Info "$_" -Status Error
         exit 1
     }
+    return $controllersession
   }
 
-  function Get-NetAppVolumeFromShare($SVM, $Share)
+  function Get-NetAppVolumeFromShare($Controller, $SVM, $Share)
   {
-    $share = get-nccifsshare -VserverContext $SVM -name $Share
+    $share = get-nccifsshare -Controller $Controller -VserverContext $SVM -name $Share
     return $share.Volume
   }
 
-  function Remove-NetAppSnapshot($SnapshotName, $SVM, $Volume)
+  function Remove-NetAppSnapshot($SnapshotName, $Controller, $SVM, $Volume)
   {
     # If an Snapshot with the name exists delete it
-    if(get-NcSnapshot -Vserver $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose) {
+    if(get-NcSnapshot -Controller $Controller -Vserver $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose) {
       Write-Log -Info "Previous Snapshot exists and will be removed..." -Status Info
       try {
-        Remove-NcSnapshot -VserverContext $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose -Confirm:$false -ErrorAction Stop
+        Remove-NcSnapshot -Controller $Controller -VserverContext $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose -Confirm:$false -ErrorAction Stop
         Write-Log -Info "Previous Snapshot was removed" -Status Info
       } catch {
         # Error handling if snapshot cannot be removed
@@ -191,12 +192,12 @@ PROCESS {
     }
   }
 
-  function Create-NetAppSnapshot($SnapshotName, $SVM, $Volume)
+  function Create-NetAppSnapshot($SnapshotName, $Controller, $SVM, $Volume)
   {
     # Create new snapshot on the source system
     Write-Log -Info "Snapshot will be created..." -Status Info
     try {
-      New-NcSnapshot -VserverContext $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose
+      New-NcSnapshot -Controller $Controller -VserverContext $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose
       Write-Log -Info "Snapshot was created" -Status Info
     } catch {
       Write-Log -Info "$_" -Status Error
@@ -205,12 +206,12 @@ PROCESS {
     }
   }
 
-  function Rename-NetAppSnapshot($SnapshotName, $NewSnapshotName, $SVM, $Volume)
+  function Rename-NetAppSnapshot($SnapshotName, $NewSnapshotName, $Controller, $SVM, $Volume)
   {
-    if(get-NcSnapshot -Vserver $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose) {
+    if(get-NcSnapshot -Controller $Controller -Vserver $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose) {
       Write-Log -Info "Actual Snapshot exists and will be renamed..." -Status Info
       try {
-      get-NcSnapshot -Vserver $SVM -Volume $Volume -Snapshot $SnapshotName | Rename-NcSnapshot -NewName $NewSnapshotName
+      get-NcSnapshot -Controller $Controller -Vserver $SVM -Volume $Volume -Snapshot $SnapshotName | Rename-NcSnapshot -NewName $NewSnapshotName
       Write-Log -Info "Snapshot was renamed" -Status Info
       } catch {
         # Error handling if snapshot cannot be removed
@@ -221,18 +222,18 @@ PROCESS {
     } 
   }
 
-  function Start-NetAppSync($SecondarySVM, $SecondaryVolume, $PrimarySnapshotName)
+  function Start-NetAppSync($Controller, $SecondarySVM, $SecondaryVolume, $PrimarySnapshotName)
   {
     #transfer snapshot to the destination system
       try {
         Write-Log -Info "SecondarySVM: $SecondarySVM" -Status Info
         Write-Log -Info "SecondaryVolume: $SecondaryVolume" -Status Info
         Write-Log -Info "Snapshot: $PrimarySnapshotName" -Status Info
-        Invoke-NcSnapmirrorUpdate -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume -SourceSnapshot $PrimarySnapshotName -Verbose
+        Invoke-NcSnapmirrorUpdate -Controller $Controller -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume -SourceSnapshot $PrimarySnapshotName -Verbose
         Write-Log -Info "Waiting for SV Transfer to finish..." -Status Info
         Start-Sleep 20
         # Check every 30 seconds if snapvault relationship is in idle state
-        while (get-ncsnapmirror -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume | ? { $_.Status -ine "idle" } ) {
+        while (get-ncsnapmirror -Controller $Controller -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume | ? { $_.Status -ine "idle" } ) {
           Write-Log -Info "Waiting for SV Transfer to finish..." -Status Info
           Start-Sleep -seconds 30
         }
@@ -244,13 +245,27 @@ PROCESS {
       }
   }
 
-  function CleanUp-SecondaryDestination($SecondarySVM, $SecondaryVolume, $PrimarySnapshotName)
+  function CleanUp-SecondaryDestination($Controller, $SecondarySVM, $SecondaryVolume, $PrimarySnapshotName)
   {
     $SnapshotNameWithDate = $SnapshotName + "_*"
     Write-Log -Info "Starting with cleaning up destination snapshots" -Status Info
     try {
       # Get the snapshots from destination and delete all snapshots created by this script and maybe retain X snapshots depending on parameter RetainLastDestinationSnapshots
-      get-NcSnapshot -Vserver $SecondarySVM -Volume $SecondaryVolume -Snapshot $SnapshotNameWithDate | Sort-Object -Property Created -Descending | Select-Object -Skip $RetainLastDestinationSnapshots | Remove-NcSnapshot -Confirm:$false
+      #Checking if it is a vault or mirror
+      $MirrorRelationship = Get-NcSnapmirror -Controller $Controller -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume
+      if($MirrorRelationship.PolicyType -eq "vault")
+      {
+        Write-Log -Info "This is a snapvault relationship. Cleanup needed" -Status Info
+        get-NcSnapshot -Controller $Controller -Vserver $SecondarySVM -Volume $SecondaryVolume -Snapshot $SnapshotNameWithDate | Sort-Object -Property Created -Descending | Select-Object -Skip $RetainLastDestinationSnapshots | Remove-NcSnapshot -Confirm:$false -ErrorAction Stop
+      }
+      elseif($MirrorRelationship.PolicyType -eq "async_mirror")
+      {
+        Write-Log -Info "This is a snapmirror relationship. Cleanup not needed" -Status Info
+      }
+      elseif($MirrorRelationship.PolicyType -eq "mirror_vault")
+      {
+        Write-Log -Info "This is a mirror and vault relationship. No idea how it works so I do nothing." -Status Info
+      }
       Write-Log -Info "Old Snapshots was cleaned up" -Status Info
     } catch {
       Write-Log -Info "$_" -Status Error
@@ -270,31 +285,34 @@ PROCESS {
   #
   Load-NetAppModule
   #Connect to the NetApp system
-  Connect-NetAppSystem -clusterName $PrimaryCluster -svmName $PrimarySVM -clusterCredential $PrimaryClusterCredentials
+  $PrimaryClusterSession = Connect-NetAppSystem -clusterName $PrimaryCluster -svmName $PrimarySVM -clusterCredential $PrimaryClusterCredentials
+
   # IF we use Secondary Storage System we need to connect to this controller (exept its the same system as source)
   if($UseSecondaryDestination -and ($PrimaryCluster -ne $SecondaryCluster))
   {
-    Connect-NetAppSystem -clusterName $SecondaryCluster -svmName $SecondarySVM -clusterCredential $SecondaryCredentials
+    $SecondaryClusterSession = Connect-NetAppSystem -clusterName $SecondaryCluster -svmName $SecondarySVM -clusterCredential $SecondaryCredentials
+  } else {
+    $SecondaryClusterSession = $PrimaryClusterSession
   }
   #Get the name of the volume from share (ToDo: Check if Junction paths are used)
-  $PrimaryVolume = Get-NetAppVolumeFromShare -SVM $PrimarySVM -Share $PrimaryShare
+  $PrimaryVolume = Get-NetAppVolumeFromShare -Controller $PrimaryClusterSession -SVM $PrimarySVM -Share $PrimaryShare
  
   if($UseSecondaryDestination)
   {
     #If using Snapvault or SnapMirror we cannot just delete the snapshot. We need to rename
     #it otherwise we get problems with the script
     $OldSnapshotName = $SnapshotName + "OLD"
-    $SecondaryVolume = Get-NetAppVolumeFromShare -SVM $SecondarySVM -Share $SecondaryShare
-    Remove-NetAppSnapshot -SnapshotName $OldSnapshotName -SVM $PrimarySVM -Volume $PrimaryVolume
+    $SecondaryVolume = Get-NetAppVolumeFromShare -Controller $SecondaryClusterSession -SVM $SecondarySVM -Share $SecondaryShare
+    Remove-NetAppSnapshot -SnapshotName $OldSnapshotName -Controller $PrimaryClusterSession -SVM $PrimarySVM -Volume $PrimaryVolume
     # Rename exisiting Snapshot to $OldSnapshotName
-    Rename-NetAppSnapshot -SnapshotName $SnapshotName -NewSnapshotName $OldSnapshotName -SVM $PrimarySVM -Volume $PrimaryVolume
-    Create-NetAppSnapshot -SnapshotName $SnapshotName -SVM $PrimarySVM -Volume $PrimaryVolume
-    Start-NetAppSync -SecondarySVM $SecondarySVM -SecondaryVolume $SecondaryVolume -PrimarySnapshotName $SnapshotName
-    Cleanup-SecondaryDestination -SecondarySVM $SecondarySVM -SecondaryVolume $SecondaryVolume -SourceSnapshotName $SnapshotName
+    Rename-NetAppSnapshot -SnapshotName $SnapshotName -NewSnapshotName $OldSnapshotName -Controller $PrimaryClusterSession -SVM $PrimarySVM -Volume $PrimaryVolume
+    Create-NetAppSnapshot -SnapshotName $SnapshotName -Controller $PrimaryClusterSession -SVM $PrimarySVM -Volume $PrimaryVolume
+    Start-NetAppSync -Controller $SecondaryClusterSession -SecondarySVM $SecondarySVM -SecondaryVolume $SecondaryVolume -PrimarySnapshotName $SnapshotName
+    Cleanup-SecondaryDestination -Controller $SecondaryClusterSession -SecondarySVM $SecondarySVM -SecondaryVolume $SecondaryVolume -SourceSnapshotName $SnapshotName
     ###
   } else {
     #Just rotate the local snapshot when no secondary destination is enabled
-    Remove-NetAppSnapshot -SnapshotName $SnapshotName -SVM $PrimarySVM -Volume $PrimaryVolume
-    Create-NetAppSnapshot -SnapshotName $SnapshotName -SVM $PrimarySVM -Volume $PrimaryVolume
+    Remove-NetAppSnapshot -SnapshotName $SnapshotName -Controller $PrimaryClusterSession -SVM $PrimarySVM -Volume $PrimaryVolume
+    Create-NetAppSnapshot -SnapshotName $SnapshotName -Controller $PrimaryClusterSession -SVM $PrimarySVM -Volume $PrimaryVolume
   }
 } # END Process
