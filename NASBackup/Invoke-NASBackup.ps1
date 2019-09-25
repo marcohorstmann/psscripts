@@ -286,7 +286,7 @@ PROCESS {
   Load-NetAppModule
   #Connect to the NetApp system
   $PrimaryClusterSession = Connect-NetAppSystem -clusterName $PrimaryCluster -svmName $PrimarySVM -clusterCredential $PrimaryClusterCredentials
-  
+
   # IF we use Secondary Storage System we need to connect to this controller (exept its the same system as source)
   if($UseSecondaryDestination -and ($PrimaryCluster -ne $SecondaryCluster))
   {
@@ -302,7 +302,7 @@ PROCESS {
     #If using Snapvault or SnapMirror we cannot just delete the snapshot. We need to rename
     #it otherwise we get problems with the script
     $OldSnapshotName = $SnapshotName + "OLD"
-    $SecondaryVolume = Get-NetAppVolumeFromShare -Controller $PrimaryClusterSession -SVM $SecondarySVM -Share $SecondaryShare
+    $SecondaryVolume = Get-NetAppVolumeFromShare -Controller $SecondaryClusterSession -SVM $SecondarySVM -Share $SecondaryShare
     Remove-NetAppSnapshot -SnapshotName $OldSnapshotName -Controller $PrimaryClusterSession -SVM $PrimarySVM -Volume $PrimaryVolume
     # Rename exisiting Snapshot to $OldSnapshotName
     Rename-NetAppSnapshot -SnapshotName $SnapshotName -NewSnapshotName $OldSnapshotName -Controller $PrimaryClusterSession -SVM $PrimarySVM -Volume $PrimaryVolume
