@@ -1,35 +1,36 @@
 ﻿<# 
    .SYNOPSIS
-   Creating Snapshot and transfer it to NetApp SnapVault destination for use with Veeam NAS Backup
+   Create NetApp Snapshot and optional Transfer to secondary destination for NAS Backup 
    .DESCRIPTION
-   This script creates a Snapshot on the source volume, transfer this snapshot to the destination volume and cleans the not longer used snapshots up. This script is primary used for 
+   This script finds the volume where the share is located and create an snapshot on this volume.
+   After creating this snapshot this snapshot will optional transfered to a secondary destination.
    .PARAMETER PrimaryCluster
-   With this parameter you specify the source NetApp cluster
+   With this parameter you specify the source NetApp cluster, where the share is located.
    .PARAMETER PrimarySVM
-   With this parameter you specify the source NetApp SVM or Vserver
+   With this parameter you specify the source NetApp SVM, where the share is located.
    .PARAMETER PrimaryShare
-   With this parameter you secify the source share from PrimarySVM
+   With this parameter you specify the source share from primary SVM. Script will lookup volume automatically.
    .PARAMETER PrimaryClusterCredentials
-   This parameter is a filename of a saved credentials file for source cluster
+   This parameter is a filename of a saved credentials file for source cluster.
    .PARAMETER SecondaryCluster
-   With this parameter you specify the secondary NetApp cluster
+   With this parameter you specify the destination NetApp cluster, where the destination share is located.
    .PARAMETER SecondarySVM
-   With this parameter you specify the secondary NetApp SVM or Vserver
+   With this parameter you specify the secondary NetApp SVM, where the destination share is located.
    .PARAMETER SecondaryShare
-   With this parameter you secify the secondary share from DestinationSVM
+   With this parameter you secify the secondary share from Destination SVM. Script will lookup volume automatically.
    .PARAMETER SecondaryClusterCredentials
-   This parameter is a filename of a saved credentials file for secondary cluster
+   This parameter is a filename of a saved credentials file for secondary cluster.
    .PARAMETER SnapshotName
-   With this parameter you can change the default snapshotname "VeeamNASBackup" to your own name
+   With this parameter you can change the default snapshotname "VeeamNASBackup" to your own snapshotname.
    .PARAMETER LogFile
-   You can set your own path for log files from this script. Default path is the same VBR uses by default "C:\ProgramData\Veeam\Backup"
+   You can set your own path for log file from this script. Default filename is "C:\ProgramData\NASBackup.log"
    .PARAMETER RetainLastDestinationSnapshots
-   If you want to keep the last X snapshots which was transfered to snapvault destination 
+   If you want to keep the last X snapshots which was transfered to snapvault destination. Default: 2
    .PARAMETER UseSecondaryDestination
-   Activate processing on secondary destination
+   With UseSecondaryDestinatination the script will require details to a secondary system. Without this Parameter you can just backup from primary share.
 
    .INPUTS
-   None. You cannot pipe objects to this script
+   None. You cannot pipe any objects to this script.
 
    .Example
    If you want to use this script with only one NetApp system you can use this parameters.
@@ -39,15 +40,16 @@
    .Example
    If you want to use a secondary destination as source for NAS Backup you can use this parameter set.
    You can add this file and parameter to a Veeam NAS Backup Job
-   .\Invoke-NASBackup.ps1 -PrimaryCluster 192.168.1.220 -PrimarySVM "lab-netapp94-svm1" -PrimaryShare "vol_cifs" -PrimaryClusterCredentials "C:\scripts\saved_credentials_Administrator.xml" -UseSecondaryDestination -SecondaryCluster 192.168.1.220 -SecondarySVM "lab-netapp94-svm1" -SecondaryShare "vol_cifs_vault" -SecondaryCredentials "C:\scripts\saved_credentials_Administrator.xml" 
+   .\Invoke-NASBackup.ps1 -PrimaryCluster 192.168.1.220 -PrimarySVM "lab-netapp94-svm1" -PrimaryShare "vol_cifs" -PrimaryClusterCredentials "C:\scripts\saved_credentials_Administrator.xml" -UseSecondaryDestination -SecondaryCluster 192.168.1.225 -SecondarySVM "lab-netapp94-svm2" -SecondaryShare "vol_cifs_vault" -SecondaryCredentials "C:\scripts\saved_credentials_Administrator.xml" 
 
    .Notes 
-   Version:        1.5
+   Version:        2.0
    Author:         Marco Horstmann (marco.horstmann@veeam.com)
-   Creation Date:  <Date>
-   Purpose/Change: Initial script development
+   Creation Date:  08 October 2019
+   Purpose/Change: Reworked documentation and commenting of code.
    
-   .LINK https://github.com/marcohorstmann/psscripts/tree/master/NASBackup
+   .LINK https://github.com/marcohorstmann/psscripts/tree/master/NASBackup  (my original Working space)
+   .LINK https://github.com/veeamhub/powershell (new location of actual version)
    .LINK https://horstmann.in
  #> 
 [CmdletBinding(DefaultParameterSetName="__AllParameterSets")]
@@ -69,7 +71,7 @@ Param(
    [string]$SnapshotName="VeeamNASBackup",
 
    [Parameter(Mandatory=$False)]
-   [string]$LogFile="C:\programdata\NASBackup.log",
+   [string]$LogFile="C:\ProgramData\NASBackup.log",
 
    [Parameter(Mandatory=$False)]
    [int]$RetainLastDestinationSnapshots=2,
@@ -79,12 +81,14 @@ Param(
 )
 
 DynamicParam {
+  # If Parameter -UseSecondaryDestination was set, the script needs additional parameters to work.
+  # With this codesection I was able to create dynamic parameters.
   if ($UseSecondaryDestination)
   {
     #create paramater dictenory
     $paramDictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
 
-    #create general settings for all attributes
+    #create general settings for all attributes which will be assigend to the parameters
     $attributes = New-Object System.Management.Automation.ParameterAttribute
     $attributes.ParameterSetName = "__AllParameterSets"
     $attributes.Mandatory = $true
@@ -113,12 +117,12 @@ DynamicParam {
     $SecondaryCredentialsParam = New-Object System.Management.Automation.RuntimeDefinedParameter('SecondaryCredentials', [String], $attributeCollection)
     $SecondaryCredentialsParam.Value = $PrimaryClusterCredentials
 
-    #Add here all parameters 
+    #Add here all parameters to the dictionary to make them available for use in script
     $paramDictionary.Add('SecondaryCluster', $SecondaryClusterParam)
     $paramDictionary.Add('SecondarySVM', $SecondarySVMParam)
     $paramDictionary.Add('SecondaryShare', $SecondaryShareParam)
     $paramDictionary.Add('SecondaryCredentials', $SecondaryCredentialsParam)
-    #add here additional parameters
+    #add here additional parameters if later needed
   }
 
   return $paramDictionary
@@ -126,6 +130,8 @@ DynamicParam {
 
 PROCESS {
 
+  # This function is used to log status to console and also the given logfilename.
+  # Usage: Write-Log -Status [Info, Status, Warning, Error] -Info "This is the text which will be logged"
   function Write-Log($Info, $Status)
   {
     switch($Status)
@@ -138,6 +144,7 @@ PROCESS {
     }
   } #end function 
 
+  # This function will load the NetApp Powershell Module.
   function Load-NetAppModule
   {
     Write-Log -Info "Trying to load NetApp Powershell module" -Status Info
@@ -151,14 +158,14 @@ PROCESS {
     }
   }
 
-
+  # This function is used to connect to a specfix NetApp SVM
   function Connect-NetAppSystem($clusterName, $svmName, $clusterCredential)
   {
-    # Import NetApp Powershell Plugins
     Write-Log -Info "Trying to connect to SVM $svmName on cluster $clusterName " -Status Info
     try {
-        $Credential = Import-CliXml -Path $clusterCredential -ErrorAction Stop  
-        #Connect-NcController -name $System -Vserver $svmName -Credential $Credential -HTTPS -ErrorAction Stop
+        # Read Credentials from credentials file
+        $Credential = Import-CliXml -Path $clusterCredential -ErrorAction Stop
+        # Save the controller session into a variable to return this into the main script 
         $ControllerSession = Connect-NcController -name $clusterName -Vserver $svmName -Credential $Credential -HTTPS -ErrorAction Stop
         Write-Log -Info "Connection established to $svmName on cluster $clusterName" -Status Info
     } catch {
@@ -169,12 +176,14 @@ PROCESS {
     return $controllersession
   }
 
+  # This function lookup the volume behind a share and return this volumename
   function Get-NetAppVolumeFromShare($Controller, $SVM, $Share)
   {
     $share = get-nccifsshare -Controller $Controller -VserverContext $SVM -name $Share
     return $share.Volume
   }
 
+  # This function deletes a snapshot 
   function Remove-NetAppSnapshot($SnapshotName, $Controller, $SVM, $Volume)
   {
     # If an Snapshot with the name exists delete it
@@ -187,14 +196,14 @@ PROCESS {
         # Error handling if snapshot cannot be removed
         Write-Log -Info "$_" -Status Error
         Write-Log -Info "Previous Snapshot could be removed" -Status Error
-        exit 1
+        exit 50
       }
     }
   }
 
+  # This function creates a snapshot on source system
   function Create-NetAppSnapshot($SnapshotName, $Controller, $SVM, $Volume)
   {
-    # Create new snapshot on the source system
     Write-Log -Info "Snapshot will be created..." -Status Info
     try {
       New-NcSnapshot -Controller $Controller -VserverContext $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose
@@ -206,6 +215,7 @@ PROCESS {
     }
   }
 
+  # This function is used to rename snapshots on secondary system e.g. Snapvault volume.
   function Rename-NetAppSnapshot($SnapshotName, $NewSnapshotName, $Controller, $SVM, $Volume)
   {
     if(get-NcSnapshot -Controller $Controller -Vserver $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose) {
@@ -222,6 +232,7 @@ PROCESS {
     } 
   }
 
+  # This function transfer snapshot to the destination system and waits until transfer is completed
   function Start-NetAppSync($Controller, $SecondarySVM, $SecondaryVolume, $PrimarySnapshotName)
   {
     #transfer snapshot to the destination system
@@ -245,32 +256,34 @@ PROCESS {
       }
   }
 
+  # This function gets the snapshots from destination and delete all snapshots created by this script and maybe retain X snapshots
+  # depending on parameter RetainLastDestinationSnapshots
   function CleanUp-SecondaryDestination($Controller, $SecondarySVM, $SecondaryVolume, $PrimarySnapshotName)
   {
     $SnapshotNameWithDate = $SnapshotName + "_*"
     Write-Log -Info "Starting with cleaning up destination snapshots" -Status Info
-    try {
-      # Get the snapshots from destination and delete all snapshots created by this script and maybe retain X snapshots depending on parameter RetainLastDestinationSnapshots
-      #Checking if it is a vault or mirror
-      $MirrorRelationship = Get-NcSnapmirror -Controller $Controller -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume
-      if($MirrorRelationship.PolicyType -eq "vault")
-      {
+    #Checking if it is a vault or mirror
+    $MirrorRelationship = Get-NcSnapmirror -Controller $Controller -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume
+    if($MirrorRelationship.PolicyType -eq "vault")
+    {
+      try {
         Write-Log -Info "This is a snapvault relationship. Cleanup needed" -Status Info
         get-NcSnapshot -Controller $Controller -Vserver $SecondarySVM -Volume $SecondaryVolume -Snapshot $SnapshotNameWithDate | Sort-Object -Property Created -Descending | Select-Object -Skip $RetainLastDestinationSnapshots | Remove-NcSnapshot -Confirm:$false -ErrorAction Stop
+        Write-Log -Info "Old Snapshots was cleaned up" -Status Info
+      } catch {
+        Write-Log -Info "$_" -Status Error
+        Write-Log -Info "Snapshots couldn't be cleaned up at destination volume" -Status Error
       }
-      elseif($MirrorRelationship.PolicyType -eq "async_mirror")
-      {
-        Write-Log -Info "This is a snapmirror relationship. Cleanup not needed" -Status Info
-      }
-      elseif($MirrorRelationship.PolicyType -eq "mirror_vault")
-      {
-        Write-Log -Info "This is a mirror and vault relationship. No idea how it works so I do nothing." -Status Info
-      }
-      Write-Log -Info "Old Snapshots was cleaned up" -Status Info
-    } catch {
-      Write-Log -Info "$_" -Status Error
-      Write-Log -Info "Snapshots couldn't be cleaned up at destination volume" -Status Error
     }
+    elseif($MirrorRelationship.PolicyType -eq "async_mirror")
+    {
+      Write-Log -Info "This is a snapmirror relationship. Cleanup not needed" -Status Info
+    }
+    elseif($MirrorRelationship.PolicyType -eq "mirror_vault")
+    {
+      Write-Log -Info "This is a mirror and vault relationship. No idea how it works so I do nothing." -Status Warning
+    }
+   
   }
 
   #Add dynamic paramters to use it in normal code
@@ -278,13 +291,13 @@ PROCESS {
     {
         Set-Variable -Name $key -Value $PSBoundParameters."$key" -Scope 0
     }
+
   #
-  # ToDo Add Fuction to see when a new session was started
+  # Main Code starts
   #
-  #
-  #
+  # Load the NetApp Modules
   Load-NetAppModule
-  #Connect to the NetApp system
+  # Connect to the source NetApp system
   $PrimaryClusterSession = Connect-NetAppSystem -clusterName $PrimaryCluster -svmName $PrimarySVM -clusterCredential $PrimaryClusterCredentials
 
   # IF we use Secondary Storage System we need to connect to this controller (exept its the same system as source)
@@ -294,9 +307,10 @@ PROCESS {
   } else {
     $SecondaryClusterSession = $PrimaryClusterSession
   }
-  #Get the name of the volume from share (ToDo: Check if Junction paths are used)
+  #Get the name of the volume from share (ToDo for future: Check if Junction paths are used)
   $PrimaryVolume = Get-NetAppVolumeFromShare -Controller $PrimaryClusterSession -SVM $PrimarySVM -Share $PrimaryShare
  
+  # This codeblock is only needed if we transfer to a secondary system. 
   if($UseSecondaryDestination)
   {
     #If using Snapvault or SnapMirror we cannot just delete the snapshot. We need to rename
@@ -309,7 +323,8 @@ PROCESS {
     Create-NetAppSnapshot -SnapshotName $SnapshotName -Controller $PrimaryClusterSession -SVM $PrimarySVM -Volume $PrimaryVolume
     Start-NetAppSync -Controller $SecondaryClusterSession -SecondarySVM $SecondarySVM -SecondaryVolume $SecondaryVolume -PrimarySnapshotName $SnapshotName
     Cleanup-SecondaryDestination -Controller $SecondaryClusterSession -SecondarySVM $SecondarySVM -SecondaryVolume $SecondaryVolume -SourceSnapshotName $SnapshotName
-    ###
+    
+    # If we dont use seconady systems we only take care of processing on the primary system.
   } else {
     #Just rotate the local snapshot when no secondary destination is enabled
     Remove-NetAppSnapshot -SnapshotName $SnapshotName -Controller $PrimaryClusterSession -SVM $PrimarySVM -Volume $PrimaryVolume
