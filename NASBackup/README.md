@@ -1,2 +1,0 @@
-# psscripts
-My Powershell Scripts
