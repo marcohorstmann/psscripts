@@ -570,13 +570,17 @@ $MVRversion = "11.0.0"
 
 #region Connect
 # Load Veeam Snapin
-#ToDo: Build v10 Compatibility:
-#  (Add-PSSnapin -PassThru VeeamPSSnapIn -ErrorAction Stop)
-
-If (<#!#>(import-module Veeam.Backup.PowerShell -ErrorAction Stop)) {
-    Write-Error "Unable to load Veeam snapin"
-    Exit
-}
+ 
+try {
+    import-module Veeam.Backup.PowerShell -ErrorAction Stop
+} catch  {
+    try {
+        Add-PSSnapin VeeamPSSnapin -ErrorAction Stop
+    } catch  {
+                Write-Host "Error loading powershell modules" -ForegroundColor Red
+                exit
+            }
+    }
 
 # Connect to VBR server
 $OpenConnection = (Get-VBRServerSession).Server
@@ -1023,8 +1027,10 @@ Function Get-VBRRepoInfo {
         "DataDomain" {"Data Domain"}
         "ExaGrid" {"ExaGrid"}
         "HPStoreOnce" {"HP StoreOnce"}
+        "Nfs" {"NFS Direct"}
         default {"Unknown"}   
       }
+      #ToDo: Check v10 Compatiblity. the .GetContainer().*.InBytes needs maybe removed. Maybe with if version Xy than?
       $outputObj = Build-Object $r.Name $($r.GetHost()).Name.ToLower() $r.Path $r.GetContainer().CachedFreeSpace.InBytes $r.GetContainer().CachedTotalSpace.InBytes $r.Options.MaxTaskCount $rType
     }
     $outputAry += $outputObj
@@ -1070,8 +1076,10 @@ Function Get-VBRSORepoInfo {
           "DataDomain" {"Data Domain"}
           "ExaGrid" {"ExaGrid"}
           "HPStoreOnce" {"HP StoreOnce"}
+          "Nfs" {"NFS Direct"}
           default {"Unknown"}     
         }
+        #ToDo: Check v10 Compatiblity. the .GetContainer().*.InBytes needs maybe removed. Maybe with if version Xy than? See other  function Get-VBRRepoInfo
         $outputObj = Build-Object $rs.Name $r.Name $($r.GetHost()).Name.ToLower() $r.Path $r.GetContainer().CachedFreeSpace.InBytes $r.GetContainer().CachedTotalSpace.InBytes $r.Options.MaxTaskCount $rType
         $outputAry += $outputObj
       }
@@ -1389,16 +1397,14 @@ Function Get-MultiJobs {
  
 #region Report
 # Get Veeam Version
-$VeeamVersion = Get-VeeamVersion
-$VeeamMinVersion = "11.0.0.591"
+[version]$VeeamVersion = Get-VeeamVersion
+[version]$VeeamMinVersion = "11.0.0.591"
 
-<# ToDO: Check Reparieren) 11.0.0.591
-If ($VeeamVersion -lt 9.5) {
-  Write-Host "Script requires VBR v9.5" -ForegroundColor Red
+if ($VeeamVersion -lt $VeeamMinVersion) {
+  Write-Host "Script requires VBR v11" -ForegroundColor Red
   Write-Host "Version detected - $VeeamVersion" -ForegroundColor Red
   exit
 }
-#>
 
 # HTML Stuff
 $headerObj = @"
