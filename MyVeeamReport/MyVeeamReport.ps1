@@ -30,6 +30,10 @@
     Veeam Backup & Replication v11 Beta 2 (full or console install)
     VMware Infrastructure
 
+    .TODO
+    Add Capacity Tier and Archive Tier
+    Rewrite the SOBR details to get tier infos
+
 #> 
 
 #region User-Variables
@@ -1048,7 +1052,7 @@ Function Get-VBRSORepoInfo {
   )
   Begin {
     $outputAry = @()
-    Function Build-Object {param($name, $rname, $repohost, $path, $free, $total, $maxtasks, $rtype)
+    Function Build-Object {param($name, $rname, $repohost, $path, $free, $total, $maxtasks, $rtype, $capenabled)
       $repoObj = New-Object -TypeName PSObject -Property @{
         SoTarget = $name
         Target = $rname
@@ -1059,6 +1063,7 @@ Function Get-VBRSORepoInfo {
         FreePercentage = [Math]::Round(($free/$total)*100)
         MaxTasks = $maxtasks
         rType = $rtype
+        capEnabled = $capenabled
       }
       Return $repoObj
     }
@@ -1080,7 +1085,7 @@ Function Get-VBRSORepoInfo {
           default {"Unknown"}     
         }
         #ToDo: Check v10 Compatiblity. the .GetContainer().*.InBytes needs maybe removed. Maybe with if version Xy than? See other  function Get-VBRRepoInfo
-        $outputObj = Build-Object $rs.Name $r.Name $($r.GetHost()).Name.ToLower() $r.Path $r.GetContainer().CachedFreeSpace.InBytes $r.GetContainer().CachedTotalSpace.InBytes $r.Options.MaxTaskCount $rType
+        $outputObj = Build-Object $rs.Name $r.Name $($r.GetHost()).Name.ToLower() $r.Path $r.GetContainer().CachedFreeSpace.InBytes $r.GetContainer().CachedTotalSpace.InBytes $r.Options.MaxTaskCount $rType $r.EnableCapacityTier
         $outputAry += $outputObj
       }
     } 
@@ -1485,7 +1490,7 @@ $HTMLbreak = @"
 $footerObj = @"
 <table>
                 <tr>
-                    <td style="height: 15px;background-color: #ffffff;border: none;color: #626365;font-size: 10px;text-align:center;">My Veeam Report maintained by <a href="http://blog.smasterson.com" target="_blank">http://blog.smasterson.com</a></td>
+                    <td style="height: 15px;background-color: #ffffff;border: none;color: #626365;font-size: 10px;text-align:center;">My Veeam Report developed by <a href="http://blog.smasterson.com" target="_blank">http://blog.smasterson.com</a> and modified for V11 by <a href="http://horstmann.in" target="_blank">http://horstmann.in</a></td>
                 </tr>
             </table>
         </center>
