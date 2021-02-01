@@ -7,6 +7,9 @@
    Author:         Marco Horstmann (marco.horstmann@veeam.com)
    Creation Date:  01 Feb 2021
    Purpose/Change: Initial Release
+   Disclaimer:     This script is a sample what you can build. Veeam
+                   or the author is not responible for maintaining or
+                   providing support for this script.
    
    .LINK https://github.com/marcohorstmann/psscripts
    .LINK https://horstmann.in
