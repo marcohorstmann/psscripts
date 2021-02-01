@@ -21,6 +21,9 @@ $rptTitle = "Backup Size by User"
 # HTML Report Width (Percent)
 $rptWidth = 60
 
+# attach CSV file?
+$csvFileAttachment = $true
+
 # Email configuration
 #ORG $emailHost = "smtp.yourserver.com"
 $emailHost = "192.168.30.10"
@@ -98,6 +101,13 @@ $htmlOutput += @"
              </table>
 "@
 
+# CSV file attachment
+if($csvFileAttachment) {
+    $csvOutput = $outputList | Sort Foldersize -Descending | Select @{Name="Username"; Expression = {$_.Username}},
+                                        @{Name="Folder Size (GB)"; Expression = {[math]::Round($_.Foldersize,2)}} | ConvertTo-CSV -NoTypeInformation -Delimiter "`t"
+    $csvTempFile = "$env:TEMP\$($rptTitle)_$(Get-Date -format MMddyyyy_hhmmss).csv"
+    $csvOutput | Out-File $csvTempFile
+}
 
 # Send Report via Email
 # Create new SMTP connection to mail server
@@ -113,6 +123,18 @@ $msg.Subject = $rptTitle
 $body = $htmlOutput
 $msg.Body = $body
 #define that this mail is an HTML formated mail
-$msg.isBodyhtml = $true      
+$msg.isBodyhtml = $true
+if($csvFileAttachment) {
+     $attachment = new-object System.Net.Mail.Attachment $csvtempFile
+    $msg.Attachments.Add($attachment)
+}
 # Send email
 $smtp.send($msg)
+
+#Cleanup temporary file
+if($csvFileAttachment) {
+    $attachment.dispose()
+    $msg.dispose()
+    $smtp.Dispose()
+    Remove-Item $csvTempFile -Force
+}
