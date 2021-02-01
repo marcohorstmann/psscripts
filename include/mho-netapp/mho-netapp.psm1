@@ -1,28 +1,28 @@
-﻿<# 
-   .SYNOPSIS
-   Short description what this script is used for
-   .DESCRIPTION
-   Explain in detail what this script dp
-   .PARAMETER LogFile
-   You can set your own path for log file from this script. Default filename is "C:\ProgramData\dfsrecovery.log"
-
-   .Example
-   How to run this script with an example
-   .\Involve-NASInstantDFSRecovery.ps1 -DfsRoot "\\homelab\dfs" -ScanDepth 3 -VBRJobName "DFS NAS Test" -Owner "HOMELAB\Administrator"
-
-
-   .Notes 
-   Version:        1.0
-   Author:         Marco Horstmann (marco.horstmann@veeam.com)
-   Creation Date:  20 August 2020
-   Purpose/Change: Initial Release
-   
-   .LINK https://github.com/marcohorstmann/powershell
-   .LINK https://horstmann.in
- #> 
-
-# This function will load the NetApp Powershell Module.
+﻿# This function will load the NetApp Powershell Module.
 function Import-MHONetAppOntapModule {
+<#
+    .SYNOPSIS
+        This function is used to load the NetApp DataOntap Modules
+    .DESCRIPTION
+        This function tries to load the NetApp DataOntap cmdlets. If this fails
+        it will stop the script execution.
+    .INPUTS
+        None
+
+    .OUTPUTS
+        None
+
+    .EXAMPLE
+        Import-MHONetAppOntapModule
+
+    .NOTES 
+        Version:        2.0
+        Author:         Marco Horstmann (marco.horstmann@veeam.com)
+        Creation Date:  25 Januar 2021
+        Purpose/Change: Initial Release
+    .LINK
+        Online Version: https://github.com/marcohorstmann/psscripts
+#>
     Write-MHOLog -Status Info -Info "Trying to load NetApp Ontap Powershell Modul ..."
     try {
         Import-Module DataONTAP -ErrorAction Stop
@@ -30,7 +30,7 @@ function Import-MHONetAppOntapModule {
     } catch  {
         Write-MHOLog -Info "$_" -Status Error
         Write-MHOLog -Info "Loading NetApp Powershell module failed" -Status Error
-        exit 99
+        exit
         }
 } # end function
 

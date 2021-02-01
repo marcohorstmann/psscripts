@@ -251,19 +251,19 @@ $showExpTpVlt = $false
 $showTpWrt = $false
 
 # Show Agent Backup Session Summary
-$showSummaryEp = $false
+$showSummaryEp = $true
 # Show Agent Backup Job Status
-$showJobsEp = $false
+$showJobsEp = $true
 # Show Agent Backup Job Size (total)
-$showBackupSizeEp = $false
+$showBackupSizeEp = $true
 # Show all Agent Backup Sessions within time frame ($reportMode)
-$showAllSessEp = $false
+$showAllSessEp = $true
 # Show Running Agent Backup jobs
-$showRunningEp = $false
+$showRunningEp = $true
 # Show Agent Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailEp = $false
+$showWarnFailEp = $true
 # Show Successful Agent Backup Sessions within time frame ($reportMode)
-$showSuccessEp = $false
+$showSuccessEp = $true
 # Only show last session for each Agent Backup Job
 $onlyLastEp = $false
 # Only report on the following Agent Backup Job(s)
@@ -4169,6 +4169,7 @@ If ($showRepo) {
         ElseIf ($_.FreePercentage -lt $repoWarn) {"Warning"}
         ElseIf ($_.FreePercentage -eq "Unknown") {"Unknown"}
         Else {"OK"}}
+
       }
     $bodySORepo = $arrSORepo | Sort "Scale Out Repository Name", "Member Repository Name" | ConvertTo-HTML -Fragment
     If ($arrSORepo.status -match "Critical") {
