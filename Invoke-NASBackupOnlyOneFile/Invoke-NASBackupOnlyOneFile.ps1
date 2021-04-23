@@ -5,11 +5,11 @@
    This scripts looks for the most current file of all backup objects in a job and only adds the
    last written file of every backup object into the include mask of the job
    .PARAMETER LogFile
-   You can set your own path for log file from this script. Default filename is "C:\ProgramData\Involve-NASBackupOnlyOneFile.log"
+   You can set your own path for log file from this script. Default filename is "C:\ProgramData\Invoke-NASBackupOnlyOneFile.log"
 
    .Example
    How to run this script with an example
-   .\Involve-NASBackupOnlyOneFile.ps1 -Job "File Backup Job"
+   .\Invoke-NASBackupOnlyOneFile.ps1 -Job "File Backup Job"
 
    .Notes 
    Version:        1.0
