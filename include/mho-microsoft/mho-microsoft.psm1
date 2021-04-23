@@ -27,7 +27,7 @@
     if(get-windowsFeature -Name "RSAT-DFS-Mgmt-Con" | Where-Object -Property "InstallState" -EQ "Installed") {
         Write-MHOLog -Status Info -Info "DFS Management Tools are already installed ..."
     } else {
-        Write-MHOLog -Status Status -Info "DFS Management Tools are not installed ... INSTALLING"
+        Write-MHOLog -Status Info -Info "DFS Management Tools are not installed ... INSTALLING"
         try {
             Install-WindowsFeature -Name "RSAT-DFS-Mgmt-Con" -Confirm:$false
             Write-MHOLog -Info "DFS Management Tools was installed... SUCCESSFUL" -Status Info
@@ -261,7 +261,7 @@ function Get-MHODfsFolder {
     return $folderarray
 } #end function
 
-
+#region Function Get-MHOReparsePointDetails
 function Get-MHOReparsePointDetails {
 <#
     .SYNOPSIS
@@ -279,24 +279,33 @@ function Get-MHOReparsePointDetails {
         $reparsepointDetails = Get-MHOReparsePointDetails -reparsepoints $dfsfolder
     
     .NOTES 
-        Version:        2.0
+        Version:        2.1
         Author:         Marco Horstmann (marco.horstmann@veeam.com)
-        Creation Date:  25 Januar 2021
-        Purpose/Change: Initial Release
+        Creation Date:  3 February 2021
+        Purpose/Change: Get pipeline stuff working.
     .LINK
         Online Version: https://github.com/marcohorstmann/psscripts
 #>
     [CmdletBinding()]
     param(
         # This parameter is an array with UNC paths to check
-        [Parameter(Mandatory=$True)]
-        #Doesn't work because array is not passed to command it will be unwrapped before
-        #[Parameter(Mandatory=$True, ValueFromPipeline = $true)]
+        [Parameter(Mandatory=$True, ValueFromPipeline = $true)]
         [String[]]$reparsepoints
     )
-    $sharearray = @()
-    $reparsepoints | ForEach-Object {
-        $sharearray  += Get-DfsnFolderTarget $_
+    # Needs to be done in this way otherwise pipelines wouldn't work.
+    BEGIN {
+        #Create the share
+        $sharearray = @()
     }
-    return $sharearray
-} # end function
+    PROCESS {
+        #For every Reparse Point return the details
+        Foreach ($reparsepoint IN $reparsepoints) {
+            $sharearray  += Get-DfsnFolderTarget $reparsepoint
+        }
+    }
+    END {
+        #Return all reparse point details
+        return $sharearray
+    }
+}
+#endregion Get-MHOReparsePointDetails

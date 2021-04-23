@@ -23,7 +23,8 @@ function Import-MHONetAppOntapModule {
     .LINK
         Online Version: https://github.com/marcohorstmann/psscripts
 #>
-    Write-MHOLog -Status Info -Info "Trying to load NetApp Ontap Powershell Modul ..."
+    <# old version
+    #Write-MHOLog -Status Info -Info "Trying to load NetApp Ontap Powershell Modul ..."
     try {
         Import-Module DataONTAP -ErrorAction Stop
         Write-MHOLog -Info "Trying to load NetApp Ontap Powershell Modul ... SUCCESSFUL" -Status Info
@@ -32,6 +33,24 @@ function Import-MHONetAppOntapModule {
         Write-MHOLog -Info "Loading NetApp Powershell module failed" -Status Error
         exit
         }
+    #>  #old version end
+
+    Write-MHOLog -Status Info -Info "Checking if NetApp Ontap Modules are installed ..."
+    if(Get-Command -Module *DataOntap*) {
+        import-module DataOntap -ErrorAction Stop
+        Write-MHOLog -Status Info -Info "NetApp Ontap Modules are loaded ... DONE"
+    } else {
+        Write-MHOLog -Status Info -Info "NetApp Ontap Modules are not installed... INSTALLING..."
+        try {
+            Install-Module -Name DataOntap -Force -Confirm:$False
+            import-module DataOntap -ErrorAction Stop
+            Write-MHOLog -Info "NetApp Ontap Modules was installed... DONE" -Status Info
+        } catch  {
+            Write-MHOLog -Info "$_" -Status Error
+            Write-MHOLog -Info "Installing NetApp Ontap Modules... FAILED" -Status Error
+            exit
+        }
+    }
 } # end function
 
 # This function is used to connect to a specfix NetApp SVM

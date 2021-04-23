@@ -164,3 +164,67 @@ function Get-MHOVBRAgentPolicyBackupsSize {
     }
     return $agentBackupsResult
 } # end function
+
+function Get-MHOVbrJobNameFromPID {
+    $parentPid = (Get-WmiObject Win32_Process -Filter "processid='$pid'").parentprocessid.ToString()
+    $parentCmd = (Get-WmiObject Win32_Process -Filter "processid='$parentPid'").CommandLine
+    $cmdArgs = $parentCmd.Replace('" "','","').Replace('"','').Split(',')
+    $jobName = (Get-VBRJob | ? {$cmdArgs[4] -eq $_.Id.ToString()}).Name
+    return $jobName
+}
+
+function Get-MHOVbrJobSessionFromPID {
+    $parentPid = (Get-WmiObject Win32_Process -Filter "processid='$pid'").parentprocessid.ToString()
+    $parentCmd = (Get-WmiObject Win32_Process -Filter "processid='$parentPid'").CommandLine
+    $cmdArgs = $parentCmd.Replace('" "','","').Replace('"','').Split(',')
+    
+    $jobSession = (Get-VBRJob | ? {$cmdArgs[4] -eq $_.Id.ToString()}).FindLastSession()
+
+    return $jobSession
+}
+
+
+function Add-MHOVbrJobSessionLogEvent {
+    param(
+    [Parameter(Mandatory=$True)]
+    [string]$Text,
+    
+    [Parameter(Mandatory=$False)]
+    $LogNumber,
+    
+    [Parameter(Mandatory=$True)]
+    $BackupSession,
+
+    [ValidateSet("Running",”Success”,"Warning”,”Error”,"UpdateSuccess", "UpdateFailed", "UpdateWarning")]
+    [Parameter(Mandatory=$True)]
+    [string]$Status
+    )
+
+    switch($Status)
+    {
+        Running        { $logevent = $BackupSession.Logger.AddLog($Text) }
+        Success        { $logevent = $BackupSession.Logger.AddSuccess($Text) }
+        Warning        { $logevent = $BackupSession.Logger.AddWarning($Text) }
+        Error          { $logevent = $BackupSession.Logger.AddErr($Text) }
+        UpdateSuccess  { $logevent = $BackupSession.Logger.UpdateLog($LogNumber, "ESucceeded", $Text, "") }
+        UpdateFailed   { $logevent = $BackupSession.Logger.UpdateLog($LogNumber, "EFailed", $Text, "") }
+        UpdateWarning  { $logevent = $BackupSession.Logger.UpdateLog($LogNumber, "EWarning", $Text, "") }
+        default { }
+    }
+
+    # Add new "Play" Log entry which starts to run with a counter
+    #$logevent = $backupSession.Logger.AddLog("Test Log")
+    # Add new Error Log Entry
+    #$logevent = $backupsessions.Logger.AddErr("Test Job Error")
+    # Add new Success Log Entry
+    #$logevent = $BackupSession.Logger.AddSuccess($Text)
+    #Add new Warning Log Entry
+    #$logevent = $backupsessions.Logger.AddWarning("Test Job Warning")
+    #Delete a Log Event based on the Log entry no
+    #$backupsessions.Logger.RemoveRecord($logevent)
+
+    # Change Log entry to 
+    #$backupsessions.Logger.UpdateLog($logevent, "ESucceeded", "Abgeschlossen", "Beschreibung")
+    #$backupsessions.Logger.UpdateLog($logevent, "EFailed", "Fehlgeschlagen", "Beschreibung")
+    return $logevent
+}
