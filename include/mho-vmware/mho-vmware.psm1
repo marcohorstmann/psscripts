@@ -11,7 +11,7 @@
         Online Version: https://github.com/marcohorstmann/psscripts
 #>
     Write-MHOLog -Status Info -Info "Checking if VMware Modules are installed ..."
-    if(Get-Command -Module *VMWare*) {
+    if(Get-Command -Module *VMWare.*) {
         Write-MHOLog -Status Info -Info "VMware Modules are already installed... SKIPPED"
         import-module VMware.PowerCLI -ErrorAction Stop
     } else {

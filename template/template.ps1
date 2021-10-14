@@ -4,11 +4,11 @@
    .DESCRIPTION
    Explain in detail what this script dp
    .PARAMETER LogFile
-   You can set your own path for log file from this script. Default filename is "C:\ProgramData\dfsrecovery.log"
+   You can set your own path for log file from this script. Default filename is "C:\ProgramData\template.log"
 
    .Example
    How to run this script with an example
-   .\Involve-NASInstantDFSRecovery.ps1 -DfsRoot "\\homelab\dfs" -ScanDepth 3 -VBRJobName "DFS NAS Test" -Owner "HOMELAB\Administrator"
+   .\template.ps1 -parameter1 "\\homelab\dfs"
 
    .Notes 
    Version:        1.0
@@ -65,7 +65,6 @@ Import-Module ..\include\mho-vmware\mho-vmware.psm1 -ErrorAction stop
 #
 
 
-
 #
 # SCRIPT FUNCTIONS END
 #
@@ -88,18 +87,8 @@ Import-MHOADManagementModule
 Import-MHODfsManagementModule
 # Laden des VMware Moduls
 Import-MHOVMwareModule
-<#
-$NetAppNfsSession = Connect-MHONetAppSVM -SVM "lab-nanfs01" -CredentialFile "C:\scripts\credential.xml"
-$proxylist = Get-MHOVeeamProxyIp
-Add-MHOIpListToNetAppExportPolicy -Session $NetAppNfsSession -ExportPolicy "default" -IpList $proxylist
-#>
 
-<#
-if(!( Find-MHOADCredentials -Username "HOMELAB\xAdministrator" )) {
-        # What should happen if username can not be validated
-        exit 99
-    }
-#>
+
 
 <#
 $dfsfolder = Get-MHODfsFolder -path "\\homelab\dfs" -currentdepth 0 -maxdepth 2
