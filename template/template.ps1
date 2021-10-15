@@ -2,7 +2,7 @@
    .SYNOPSIS
    Short description what this script is used for
    .DESCRIPTION
-   Explain in detail what this script dp
+   Explain in detail what this script do. This block can be of cause multiline as well.
    .PARAMETER LogFile
    You can set your own path for log file from this script. Default filename is "C:\ProgramData\template.log"
 
@@ -13,7 +13,7 @@
    .Notes 
    Version:        1.0
    Author:         Marco Horstmann (marco.horstmann@veeam.com)
-   Creation Date:  13 November 2020
+   Creation Date:  15 October 2021
    Purpose/Change: Initial Release
    
    .LINK https://github.com/marcohorstmann/psscripts
@@ -21,28 +21,27 @@
  #> 
 [CmdletBinding(DefaultParameterSetName="__AllParameterSets")]
 Param(
-
-<#
+<# This is a sample parameter you can use to pass commandline parameters to this script
    [Parameter(Mandatory=$True)]
    [string]$VBRJobName,
 #>
    [Parameter(Mandatory=$False)]
-   [string]$Log=$("C:\log\" + $MyInvocation.MyCommand.Name + ".log")
+   [string]$global:Log=$("C:\log\" + $MyInvocation.MyCommand.Name + ".log")
 )
 
 #
 # GLOBAL MODULE IMPORT
 #
 
-#Remove Modules for Debug
-Remove-Module mho-logging -ErrorAction Ignore
-Remove-Module mho-common -ErrorAction Ignore
-Remove-Module mho-veeam -ErrorAction Ignore
-Remove-Module mho-netapp -ErrorAction Ignore
-Remove-Module mho-microsoft -ErrorAction Ignore
-Remove-Module mho-vmware -ErrorAction Ignore
+#Remove Modules for Debug (I sometimes need it for Debugging changed modules. Normally this will not be used)
+#Remove-Module mho-logging -ErrorAction Ignore
+#Remove-Module mho-common -ErrorAction Ignore
+#Remove-Module mho-veeam -ErrorAction Ignore
+#Remove-Module mho-netapp -ErrorAction Ignore
+#Remove-Module mho-microsoft -ErrorAction Ignore
+#Remove-Module mho-vmware -ErrorAction Ignore
 
-# Switch Powershell current path to script path
+# Change current Powershell path to script location
 Split-Path -Parent $PSCommandPath | Set-Location
 
 #Import Logging Module
@@ -129,20 +128,4 @@ Get-MHOINT64-toIP $iptoint
 
 #$creds = Get-VBRCredentials -Name "root" | ? { $_.Description -match "root" }
 
-
-
-$vmwarecreds = Get-CredentialsFromFile -File "C:\scripts\vmware-admin.xml"
-
-$vcSession = Connect-VIServer -Server lab-vc01 -Credential $vmwarecreds
-
-$vm = Get-VM -Name "lab-dc01"
-
-#Open-VMConsoleWindow -VM $vm -Server $vcSession -UrlOnly
-
-$vmid = $vm.ExtensionData.MoRef.Value
-[System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $False }
-#Invoke-WebRequest -Uri "https://lab-vc01/screen?id=$vmid" -Credential $vmwarecreds -OutFile "C:\scripts\$vmid-$(Get-Date -f yyyyMMdd-hhmm).png" -DisableKeepAlive -Verbose
-Invoke-WebRequest -Uri "https://lab-vc01/screen?id=$vmid" -Credential $vmwarecreds -OutFile "C:\scripts\$vmid-$(Get-Date -f yyyyMMdd-hhmm).png" -Method Get
-#Invoke-RestMethod -Uri "https://lab-vc01/screen?id=$vmid" -Credential $vmwarecreds -OutFile C:\scripts\$vmid-$(Get-Date -f yyyyMMdd-hhmm).png
-
-#https://lab-vc01/screen?id=vm-1038
+Write-MHOLog -Info "This is the text which will be logged to the log file" -Status Error
