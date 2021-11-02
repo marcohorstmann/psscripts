@@ -60,13 +60,14 @@ function Connect-MHONetAppSVM($SVM, $CredentialFile) {
         # Read Credentials from credentials file
         $Credential = Import-CliXml -Path $CredentialFile -ErrorAction Stop
         # Save the session into a variable to return this into the main script 
-        $Session = Connect-NcController -name $SVM -Credential $Credential -HTTPS -ErrorAction Stop
+        $session = Connect-NcController -name $SVM -Credential $Credential -HTTPS -ErrorAction Stop
         Write-MHOLog -Info "Connection established to $SVM ..." -Status Info
-        return $controllersession
+        return $session
     } catch {
         # Error handling if connection fails  
         Write-MHOLog -Info "$_" -Status Error
         Write-MHOLog -Info "Connection to $SVM failed" -Status Error
+        Write-MHOLog -Info "Common issue is that you have not enabled managemwent access on SVM lif"
         exit
     }
 }
@@ -77,7 +78,7 @@ function Get-MHONetAppVolumeInfo($Session, $Volume) {
         $volumeObject = Get-NcVol -Controller $Session -name $Volume
         if (!$volumeObject) {
             Write-MHOLog -Info "Volume $Volume was not found" -Status Error
-            exit
+            #exit
         }
         Write-MHOLog -Info "Volume $Volume was found" -Status Info
         return $volumeObject
@@ -85,7 +86,7 @@ function Get-MHONetAppVolumeInfo($Session, $Volume) {
         # Error handling if snapshot cannot be removed
         Write-MHOLog -Info "$_" -Status Error
         Write-MHOLog -Info "Volume $Volume couldn't be located" -Status Error
-        exit 40
+        #exit 40
     }
 } # end function
 
@@ -171,3 +172,57 @@ function Add-MHOIpListToNetAppExportPolicy ($Session, $ExportPolicy, $IpList) {
         Write-MHOLog -Info "New Export Rule was created." -Status Info
     }
 } # end function
+
+# This function transfer snapshot to the destination system and waits until transfer is completed
+function Invoke-MHONetAppSync($Session, $SecondarySVM, $SecondaryVolume, $SnapshotName)
+{
+    #transfer snapshot to the destination system
+    try {
+        Write-MHOLog -Info "SecondarySVM: $SecondarySVM" -Status Info
+        Write-MHOLog -Info "SecondaryVolume: $SecondaryVolume" -Status Info
+        Write-MHOLog -Info "Snapshot: $SnapshotName" -Status Info
+        Invoke-NcSnapmirrorUpdate -Controller $Session -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume -SourceSnapshot $SnapshotName -Verbose
+        Write-MHOLog -Info "Waiting for Data Transfer to finish..." -Status Info
+        Start-Sleep 10
+        # Check every 10 seconds if snapvault relationship is in idle state
+        while (get-ncsnapmirror -Controller $Session -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume | ? { $_.Status -ine "idle" } ) {
+          Write-MHOLog -Info "Waiting for Data Transfer to finish..." -Status Info
+          Start-Sleep -seconds 10
+        }
+        Write-MHOLog -Info "SV Transfer Finished" -Status Info
+      } catch {
+        Write-MHOLog -Info "$_" -Status Error
+        Write-MHOLog -Info "Transfering Snapshot to destination system failed" -Status Error
+        exit 1
+      }
+} # end function
+
+  # This function gets the snapshots from destination and delete all snapshots created by this script and maybe retain X snapshots
+  # depending on parameter RetainLastDestinationSnapshots
+  function Invoke-MHONetAppSecondaryDestinationCleanUp($Session, $SecondaryVolume, $SnapshotName)
+  {
+    $SnapshotNameWithDate = $SnapshotName + "_*"
+    Write-MHOLog -Info "Starting with cleaning up destination snapshots" -Status Info
+    #Checking if it is a vault or mirror
+    $MirrorRelationship = Get-NcSnapmirror -Controller $Controller -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume
+    if($MirrorRelationship.PolicyType -eq "vault")
+    {
+      try {
+        Write-MHOLog -Info "This is a snapvault relationship. Cleanup needed" -Status Info
+        get-NcSnapshot -Controller $Session -Volume $SecondaryVolume -Snapshot $SnapshotNameWithDate | Sort-Object -Property Created -Descending | Select-Object -Skip $RetainLastDestinationSnapshots | Remove-NcSnapshot -Confirm:$false -ErrorAction Stop
+        Write-MHOLog -Info "Old Snapshots was cleaned up" -Status Info
+      } catch {
+        Write-MHOLog -Info "$_" -Status Error
+        Write-MHOLog -Info "Snapshots couldn't be cleaned up at destination volume" -Status Error
+      }
+    }
+    elseif($MirrorRelationship.PolicyType -eq "async_mirror")
+    {
+      Write-MHOLog -Info "This is a snapmirror relationship. Cleanup not needed" -Status Info
+    }
+    elseif($MirrorRelationship.PolicyType -eq "mirror_vault")
+    {
+      Write-MHOLog -Info "This is a mirror and vault relationship. No idea how it works so I do nothing." -Status Warning
+    }
+   
+  }

@@ -24,7 +24,7 @@
 #>
     Write-MHOLog -Status Info -Info "Loading Veeam Backup Powershell Module (V11+) ..."
         try {
-            import-module Veeam.Backup.PowerShell -ErrorAction Stop
+            import-module Veeam.Backup.PowerShell -ErrorAction Stop -DisableNameChecking
             Write-MHOLog -Info "Loading Veeam Backup Powershell Module (V11+) ... SUCCESSFUL" -Status Info
         } catch  {
             Write-MHOLog -Info "$_" -Status Warning
