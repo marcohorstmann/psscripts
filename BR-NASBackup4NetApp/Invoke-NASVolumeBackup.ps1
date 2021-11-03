@@ -47,7 +47,7 @@
    .Example
    If you want to use a secondary destination as source for NAS Backup you can use this parameter set.
    You can add this file and parameter to a Veeam NAS Backup Job
-   .\Invoke-NASVolumeBackup.ps1 -PrimarySVM "lab-nacifs01" -PrimaryVolume "data" -PrimaryCredentials "C:\scripts\psscripts\BR-NASBackup4NetApp\credential.xml" -UseSecondaryDestination -SecondarySVM "lab-nacifs02" -SecondaryVolume "data_mirror" -SecondaryCredentials "C:\scripts\psscripts\BR-NASBackup4NetApp\credential.xml" 
+   .\Invoke-NASVolumeBackup.ps1 -PrimarySVM "lab-nacifs01" -PrimaryVolume "data" -PrimaryCredentials "C:\scripts\psscripts\BR-NASBackup4NetApp\credential_admin.xml" -UseSecondaryDestination -SecondarySVM "lab-nacifs02" -SecondaryVolume "data_mirror" -SecondaryCredentials "C:\scripts\psscripts\BR-NASBackup4NetApp\credential_admin.xml" 
 
    .Notes 
    Version:        4.0
@@ -61,10 +61,6 @@
  #> 
 [CmdletBinding(DefaultParameterSetName="__AllParameterSets")]
 Param(
-<#
-   [Parameter(Mandatory=$True)]
-   [string]$PrimaryCluster,
-#>
    [Parameter(Mandatory=$True)]
    [string]$PrimarySVM,
    
@@ -80,6 +76,9 @@ Param(
    [Parameter(Mandatory=$False)]
 #   [string]$global:Log=$("C:\log\" + $MyInvocation.MyCommand.Name + ".log"),
    [string]$global:Log=$("C:\log\nasbackup.log"),
+
+    [Parameter(Mandatory=$False)]
+    [switch]$global:LogToVBR=$True,
 
    [Parameter(Mandatory=$False)]
    [int]$RetainLastDestinationSnapshots=2,
@@ -137,190 +136,6 @@ DynamicParam {
 }
 
 PROCESS {
-<# 
-  # Get timestamp for log
-  function Get-TimeStamp
-  {    
-    return "[{0:dd.MM.yyyy} {0:HH:mm:ss}]" -f (Get-Date)
-  }
-
-  # This function is used to log status to console and also the given logfilename.
-  # Usage: Write-Log -Status [Info, Status, Warning, Error] -Info "This is the text which will be logged"
-  function Write-Log($Info, $Status)
-  {
-    $Info = "$(Get-TimeStamp) $Info"
-    switch($Status)
-    {
-        NewLog {Write-Host $Info -ForegroundColor Green  ; $Info | Out-File -FilePath $Log}
-        Info    {Write-Host $Info -ForegroundColor Green  ; $Info | Out-File -FilePath $Log -Append}
-        Status  {Write-Host $Info -ForegroundColor Yellow ; $Info | Out-File -FilePath $Log -Append}
-        Warning {Write-Host $Info -ForegroundColor Yellow ; $Info | Out-File -FilePath $Log -Append}
-        Error   {Write-Host $Info -ForegroundColor Red -BackgroundColor White; $Info | Out-File -FilePath $Log -Append}
-        default {Write-Host $Info -ForegroundColor white $Info | Out-File -FilePath $Log -Append}
-    }
-  } #end function
- 
-
-  # This function will load the NetApp Powershell Module.
-  function Load-NetAppModule
-  {
-    Write-Log -Info "Trying to load NetApp Powershell module" -Status Info
-    try {
-        Import-Module DataONTAP
-        Write-Log -Info "Loaded NetApp Powershell module sucessfully" -Status Info
-    } catch  {
-        Write-Log -Info "$_" -Status Error
-        Write-Log -Info "Loading NetApp Powershell module failed" -Status Error
-        exit 99
-    }
-  }
-
-  # This function is used to connect to a specfix NetApp SVM
-  function Connect-NetAppSystem($clusterName, $svmName, $clusterCredential)
-  {
-    Write-Log -Info "Trying to connect to SVM $svmName on cluster $clusterName " -Status Info
-    try {
-        # Read Credentials from credentials file
-        $Credential = Import-CliXml -Path $clusterCredential -ErrorAction Stop
-        # Save the controller session into a variable to return this into the main script 
-        $ControllerSession = Connect-NcController -name $clusterName -Vserver $svmName -Credential $Credential -HTTPS -ErrorAction Stop
-        Write-Log -Info "Connection established to $svmName on cluster $clusterName" -Status Info
-    } catch {
-        # Error handling if connection fails  
-        Write-Log -Info "$_" -Status Error
-        exit 1
-    }
-    return $controllersession
-  }
-
-  function Get-NetAppVolumeInfo($Controller, $SVM, $Volume)
-  {
-    try {
-        $volumeObject = Get-NcVol -Controller $Controller -VserverContext $SVM -name $Volume
-        if (!$volumeObject) {
-            Write-Log -Info "Volume $Volume was not found" -Status Error
-            exit 40
-        }
-        Write-Log -Info "Volume $Volume was found" -Status Info
-        return $volumeObject
-    } catch {
-        # Error handling if snapshot cannot be removed
-        Write-Log -Info "$_" -Status Error
-        Write-Log -Info "Volume $Volume couldn't be located" -Status Error
-        exit 40
-    }
-  }
-
-  # This function deletes a snapshot 
-  function Remove-NetAppSnapshot($SnapshotName, $Controller, $SVM, $Volume)
-  {
-    # If an Snapshot with the name exists delete it
-    if(get-NcSnapshot -Controller $Controller -Vserver $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose) {
-      Write-Log -Info "Previous Snapshot exists and will be removed..." -Status Info
-      try {
-        Remove-NcSnapshot -Controller $Controller -VserverContext $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose -Confirm:$false -ErrorAction Stop
-        Write-Log -Info "Previous Snapshot was removed" -Status Info
-      } catch {
-        # Error handling if snapshot cannot be removed
-        Write-Log -Info "$_" -Status Error
-        Write-Log -Info "Previous Snapshot could be removed" -Status Error
-        exit 50
-      }
-    }
-  }
-
-  # This function creates a snapshot on source system
-  function Create-NetAppSnapshot($SnapshotName, $Controller, $SVM, $Volume)
-  {
-    Write-Log -Info "Snapshot will be created..." -Status Info
-    try {
-      New-NcSnapshot -Controller $Controller -VserverContext $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose
-      Write-Log -Info "Snapshot was created" -Status Info
-    } catch {
-      Write-Log -Info "$_" -Status Error
-      Write-Log -Info "Snapshot could not be created" -Status Error
-      exit 1
-    }
-  }
-
-  # This function is used to rename snapshots on secondary system e.g. Snapvault volume.
-  function Rename-NetAppSnapshot($SnapshotName, $NewSnapshotName, $Controller, $SVM, $Volume)
-  {
-    if(get-NcSnapshot -Controller $Controller -Vserver $SVM -Volume $Volume -Snapshot $SnapshotName -Verbose) {
-      Write-Log -Info "Actual Snapshot exists and will be renamed..." -Status Info
-      try {
-      get-NcSnapshot -Controller $Controller -Vserver $SVM -Volume $Volume -Snapshot $SnapshotName | Rename-NcSnapshot -NewName $NewSnapshotName
-      Write-Log -Info "Snapshot was renamed" -Status Info
-      } catch {
-        # Error handling if snapshot cannot be removed
-        Write-Log -Info "$_" -Status Error
-        Write-Log -Info "Snapshot could not be renamed" -Status Error
-        exit 1
-      }
-    } 
-  }
-
-  # This function transfer snapshot to the destination system and waits until transfer is completed
-  function Start-NetAppSync($Controller, $SecondarySVM, $SecondaryVolume, $PrimarySnapshotName)
-  {
-    #transfer snapshot to the destination system
-      try {
-        Write-Log -Info "SecondarySVM: $SecondarySVM" -Status Info
-        Write-Log -Info "SecondaryVolume: $SecondaryVolume" -Status Info
-        Write-Log -Info "Snapshot: $PrimarySnapshotName" -Status Info
-        Invoke-NcSnapmirrorUpdate -Controller $Controller -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume -SourceSnapshot $PrimarySnapshotName -Verbose
-        Write-Log -Info "Waiting for SV Transfer to finish..." -Status Info
-        Start-Sleep 20
-        # Check every 30 seconds if snapvault relationship is in idle state
-        while (get-ncsnapmirror -Controller $Controller -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume | ? { $_.Status -ine "idle" } ) {
-          Write-Log -Info "Waiting for SV Transfer to finish..." -Status Info
-          Start-Sleep -seconds 30
-        }
-        Write-Log -Info "SV Transfer Finished" -Status Info
-      } catch {
-        Write-Log -Info "$_" -Status Error
-        Write-Log -Info "Transfering Snapshot to destination system failed" -Status Error
-        exit 1
-      }
-  }
-
-  # This function gets the snapshots from destination and delete all snapshots created by this script and maybe retain X snapshots
-  # depending on parameter RetainLastDestinationSnapshots
-  function CleanUp-SecondaryDestination($Controller, $SecondarySVM, $SecondaryVolume, $PrimarySnapshotName)
-  {
-    $SnapshotNameWithDate = $SnapshotName + "_*"
-    Write-Log -Info "Starting with cleaning up destination snapshots" -Status Info
-    #Checking if it is a vault or mirror
-    $MirrorRelationship = Get-NcSnapmirror -Controller $Controller -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume
-    if($MirrorRelationship.PolicyType -eq "vault")
-    {
-      try {
-        Write-Log -Info "This is a snapvault relationship. Cleanup needed" -Status Info
-        get-NcSnapshot -Controller $Controller -Vserver $SecondarySVM -Volume $SecondaryVolume -Snapshot $SnapshotNameWithDate | Sort-Object -Property Created -Descending | Select-Object -Skip $RetainLastDestinationSnapshots | Remove-NcSnapshot -Confirm:$false -ErrorAction Stop
-        Write-Log -Info "Old Snapshots was cleaned up" -Status Info
-      } catch {
-        Write-Log -Info "$_" -Status Error
-        Write-Log -Info "Snapshots couldn't be cleaned up at destination volume" -Status Error
-      }
-    }
-    elseif($MirrorRelationship.PolicyType -eq "async_mirror")
-    {
-      Write-Log -Info "This is a snapmirror relationship. Cleanup not needed" -Status Info
-    }
-    elseif($MirrorRelationship.PolicyType -eq "mirror_vault")
-    {
-      Write-Log -Info "This is a mirror and vault relationship. No idea how it works so I do nothing." -Status Warning
-    }
-   
-  }
-
-#>
-    #Add dynamic paramters to use it in normal code
-    foreach($key in $PSBoundParameters.keys)
-    {
-        Set-Variable -Name $key -Value $PSBoundParameters."$key" -Scope 0
-    }
-
     #Remove Modules for Debug (can be removed in production code)
     Remove-Module mho-common -ErrorAction Ignore
     Remove-Module mho-veeam -ErrorAction Ignore
@@ -335,16 +150,31 @@ PROCESS {
     Import-Module ..\include\mho-netapp\mho-netapp.psm1 -ErrorAction stop
     #Import-Module ..\include\mho-microsoft\mho-microsoft.psm1 -ErrorAction stop
 
+    Start-MHOLog
+    #Add dynamic paramters to use it in normal code
+    foreach($key in $PSBoundParameters.keys)
+    {
+        Set-Variable -Name $key -Value $PSBoundParameters."$key" -Scope 0
+    }
+
+
 
     #
     # Main Code starts
     #
     
+    if($LogToVBR) {
+        $global:BackupSession = Get-MHOVbrJobSessionFromPID
+        Write-MHOLog -Info "Obtaining VBR job session details..." -Status Info
+        #$logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "Marco Test Success"
+    }
+    
 
     # Additional checks for unsupported configuration
     if($PrimaryVolume.Count -gt 1) {
-        Write-Log -Info "More than one primary volume was added. This is not supported with secondary destination" -Status Error
-        exit 999
+        Write-MHOLog -Info "More than one primary volume was added. This is not supported with secondary destination" -Status Error
+        $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Error -Text "More than one primary volume was added. This is not supported with secondary destination"
+        exit
     }
 
     # Load the NetApp Modules
@@ -362,7 +192,7 @@ PROCESS {
     #Get the volume properties
     ForEach($SingleVolume in $PrimaryVolume) {
         $PrimaryVolumeObject = Get-MHONetAppVolumeInfo -Session $PrimarySVMSession -Volume $SingleVolume
-
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "Getting properties of primary volume $($PrimaryVolumeObject.name)" }
         # This codeblock is only needed if we transfer to a secondary system. 
         if($UseSecondaryDestination)
         {
@@ -370,6 +200,7 @@ PROCESS {
             #it otherwise we get problems with the script
             $OldSnapshotName = $SnapshotName + "OLD"
             $SecondaryVolumeObject = Get-MHONetAppVolumeInfo -Session $SecondarySVMSession -SVM $SecondarySVM -Volume $SecondaryVolume
+            if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "Getting properties of secondary volume $($SecondaryVolumeObject.name)" }
             Remove-MHONetAppSnapshot -Session $PrimarySVMSession -Volume $PrimaryVolumeObject -Snapshot $OldSnapshotName
             # Rename exisiting Snapshot to $OldSnapshotName
             Rename-MHONetAppSnapshot -Session $PrimarySVMSession -Volume $PrimaryVolumeObject -Snapshot $SnapshotName -NewSnapshot $OldSnapshotName

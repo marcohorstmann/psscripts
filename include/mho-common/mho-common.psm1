@@ -153,7 +153,7 @@ function Import-MHOAWSModule {
         } catch  {
             Write-MHOLog -Info "$_" -Status Error
             Write-MHOLog -Info "Installing AWS Modules... FAILED" -Status Error
-            exit
+            exit 12
         }
     }
 } # end function
@@ -191,7 +191,7 @@ function Get-CredentialsFromFile {
         Write-MHOLog -Status Info -Info "Loading credentials file $File ... SUCSESSFUL"
     } else {
         Write-MHOLog -Status Error -Info "Loading credentials file $File ... FAILED"
-        exit
+        exit 13
     }
     return $Credential
 }

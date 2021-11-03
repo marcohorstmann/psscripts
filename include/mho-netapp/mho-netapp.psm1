@@ -23,35 +23,27 @@ function Import-MHONetAppOntapModule {
     .LINK
         Online Version: https://github.com/marcohorstmann/psscripts
 #>
-    <# old version
-    #Write-MHOLog -Status Info -Info "Trying to load NetApp Ontap Powershell Modul ..."
-    try {
-        Import-Module DataONTAP -ErrorAction Stop
-        Write-MHOLog -Info "Trying to load NetApp Ontap Powershell Modul ... SUCCESSFUL" -Status Info
-    } catch  {
-        Write-MHOLog -Info "$_" -Status Error
-        Write-MHOLog -Info "Loading NetApp Powershell module failed" -Status Error
-        exit
-        }
-    #>  #old version end
-
     Write-MHOLog -Status Info -Info "Checking if NetApp Ontap Modules are installed ..."
     if(Get-Command -Module *DataOntap*) {
         import-module DataOntap -ErrorAction Stop
         Write-MHOLog -Status Info -Info "NetApp Ontap Modules are loaded ... DONE"
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "NetApp DataONTAP modules are loaded" }
     } else {
         Write-MHOLog -Status Info -Info "NetApp Ontap Modules are not installed... INSTALLING..."
         try {
             Install-Module -Name DataOntap -Force -Confirm:$False
             import-module DataOntap -ErrorAction Stop
             Write-MHOLog -Info "NetApp Ontap Modules was installed... DONE" -Status Info
+            if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "NetApp DataONTAP modules are installed" }
         } catch  {
             Write-MHOLog -Info "$_" -Status Error
             Write-MHOLog -Info "Installing NetApp Ontap Modules... FAILED" -Status Error
+            if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Error -Text "NetApp DataONTAP modules failed to install" }
             exit
         }
     }
 } # end function
+
 
 # This function is used to connect to a specfix NetApp SVM
 function Connect-MHONetAppSVM($SVM, $CredentialFile) {
@@ -62,11 +54,13 @@ function Connect-MHONetAppSVM($SVM, $CredentialFile) {
         # Save the session into a variable to return this into the main script 
         $session = Connect-NcController -name $SVM -Credential $Credential -HTTPS -ErrorAction Stop
         Write-MHOLog -Info "Connection established to $SVM ..." -Status Info
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "Connection established to $SVM" }
         return $session
     } catch {
         # Error handling if connection fails  
         Write-MHOLog -Info "$_" -Status Error
-        Write-MHOLog -Info "Connection to $SVM failed" -Status Error
+        Write-MHOLog -Info "Connection failed to $SVM" -Status Error
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Error -Text "Connection failed to $SVM - Common issue is that you have not enabled managemwent access on SVM lif" }
         Write-MHOLog -Info "Common issue is that you have not enabled managemwent access on SVM lif"
         exit
     }
@@ -78,15 +72,17 @@ function Get-MHONetAppVolumeInfo($Session, $Volume) {
         $volumeObject = Get-NcVol -Controller $Session -name $Volume
         if (!$volumeObject) {
             Write-MHOLog -Info "Volume $Volume was not found" -Status Error
-            #exit
+            if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Error -Text "Volume $Volume was not found" }
+            exit
         }
         Write-MHOLog -Info "Volume $Volume was found" -Status Info
+        #if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "Getting properties of volume $Volume" }
         return $volumeObject
     } catch {
-        # Error handling if snapshot cannot be removed
         Write-MHOLog -Info "$_" -Status Error
         Write-MHOLog -Info "Volume $Volume couldn't be located" -Status Error
-        #exit 40
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Error -Text "Volume $Volume was not found" }
+        exit 40
     }
 } # end function
 
@@ -114,9 +110,11 @@ function Add-MHONetAppSnapshot($Session, $Volume, $Snapshot) {
     try {
         New-NcSnapshot -Controller $Session -Volume $Volume -Snapshot $Snapshot -Verbose
         Write-MHOLog -Info "Snapshot was created" -Status Info
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "Creating snapshot `"$Snapshot`" on volume `"$Volume`"" }
     } catch {
         Write-MHOLog -Info "$_" -Status Error
         Write-MHOLog -Info "Snapshot could not be created" -Status Error
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Error -Text "Creating snapshot `"$Snapshot`" on volume `"$Volume`" failed" }
         exit
     }
 } # end function
@@ -128,11 +126,13 @@ function Rename-MHONetAppSnapshot($Session, $Volume, $Snapshot, $NewSnapshot) {
         try {
             get-NcSnapshot -Controller $Session -Volume $Volume -Snapshot $Snapshot | Rename-NcSnapshot -NewName $NewSnapshot -Verbose
             Write-MHOLog -Info "Snapshot $Snapshot was renamed to $NewSnapshot on volume $Volume" -Status Info
+            if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "Rename existing snapshot `"$Snapshot`" on volume `"$Volume`"" }
         } catch {
             # Error handling if snapshot cannot be removed
             Write-MHOLog -Info "$_" -Status Error
             Write-MHOLog -Info "Snapshot could not be renamed" -Status Error
-            exit 1
+            if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Error -Text "Rename snapshot `"$Snapshot`" on volume `"$Volume`" failed" }
+            exit 10
         }
     } 
 } # end function
@@ -145,14 +145,17 @@ function Remove-MHONetAppSnapshot($Session, $Volume, $Snapshot) {
         try {
             Remove-NcSnapshot -Controller $Session -Volume $Volume -Snapshot $Snapshot -Verbose -Confirm:$false -ErrorAction Stop
             Write-MHOLog -Info "Snapshot $Snapshot on volume $Volume was removed" -Status Info
+            if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "Deleted snapshot `"$Snapshot`" on volume `"$Volume`"" }
         } catch {
             # Error handling if snapshot cannot be removed
             Write-MHOLog -Info "$_" -Status Error
             Write-MHOLog -Info "Snapshot $Snapshot on volume $Volume could not be removed" -Status Error
+            if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Error -Text "Deleting snapshot `"$Snapshot`" on volume `"$Volume`" failed" }
             exit
         }
     } else {
         Write-MHOLog -Info "Snapshot named $Snapshot wasn't found" -Status Error
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Error -Text "Could not find snapshot `"$Snapshot`" on volume `"$Volume`"" }
     }
 } # end function
 
@@ -182,6 +185,7 @@ function Invoke-MHONetAppSync($Session, $SecondarySVM, $SecondaryVolume, $Snapsh
         Write-MHOLog -Info "SecondaryVolume: $SecondaryVolume" -Status Info
         Write-MHOLog -Info "Snapshot: $SnapshotName" -Status Info
         Invoke-NcSnapmirrorUpdate -Controller $Session -DestinationVserver $SecondarySVM -DestinationVolume $SecondaryVolume -SourceSnapshot $SnapshotName -Verbose
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Running -Text "Updating SnapMirror Destination `"$SecondarySVM`:$($SecondaryVolume.name)`"" }
         Write-MHOLog -Info "Waiting for Data Transfer to finish..." -Status Info
         Start-Sleep 10
         # Check every 10 seconds if snapvault relationship is in idle state
@@ -190,10 +194,13 @@ function Invoke-MHONetAppSync($Session, $SecondarySVM, $SecondaryVolume, $Snapsh
           Start-Sleep -seconds 10
         }
         Write-MHOLog -Info "SV Transfer Finished" -Status Info
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status UpdateSuccess -Text "SnapMirror Destination `"$SecondarySVM`:$($SecondaryVolume.name)`" was updated" -LogNumber $logentry }
+        
       } catch {
         Write-MHOLog -Info "$_" -Status Error
         Write-MHOLog -Info "Transfering Snapshot to destination system failed" -Status Error
-        exit 1
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status UpdateFailed -Text "SnapMirror Destination `"$SecondarySVM`:$($SecondaryVolume.name)`" failed to update" -LogNumber $logentry }
+        exit 11
       }
 } # end function
 
@@ -211,6 +218,8 @@ function Invoke-MHONetAppSync($Session, $SecondarySVM, $SecondaryVolume, $Snapsh
         Write-MHOLog -Info "This is a snapvault relationship. Cleanup needed" -Status Info
         get-NcSnapshot -Controller $Session -Volume $SecondaryVolume -Snapshot $SnapshotNameWithDate | Sort-Object -Property Created -Descending | Select-Object -Skip $RetainLastDestinationSnapshots | Remove-NcSnapshot -Confirm:$false -ErrorAction Stop
         Write-MHOLog -Info "Old Snapshots was cleaned up" -Status Info
+        if($LogToVBR) { $logentry = Add-MHOVbrJobSessionLogEvent -BackupSession $BackupSession -Status Success -Text "Removing old snapshots from secondary volume" }
+
       } catch {
         Write-MHOLog -Info "$_" -Status Error
         Write-MHOLog -Info "Snapshots couldn't be cleaned up at destination volume" -Status Error
