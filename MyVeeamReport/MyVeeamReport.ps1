@@ -19,27 +19,32 @@
     Run script from (an elevated) PowerShell console  
   
     .NOTES
-    New Author: Marco Horstmann
-    Last Updated: 16 November 2020
-    Version: 11.0.0
+    New Authors: Marco Horstmann & Herbert Szumovski
+    Last Updated: 23 March 2022
+    Version: 11.0.1.4
     Original Author: Shawn Masterson
     Last Updated: December 2017
     Version: 9.5.3
   
     Requires:
-    Veeam Backup & Replication v11 Beta 2 (full or console install)
+    Veeam Backup & Replication v11.0 or later (full or console install)
     VMware Infrastructure
-
-    .TODO
-    Add Capacity Tier and Archive Tier
-    Rewrite the SOBR details to get tier infos
+	
+	+---------------------------------------------------------------------------------------+
+	|   H. Szumovski: This is an update of Shawns last Version above: 9.5.3                 |
+	|	WARNING:  Only the reports which are set to "$true" in the user variables           |
+	|			region, will work, because I have not the time nor the equipment to	        |
+	|			test the others (especially everything related to replication functions).	|
+	|			If reports are disabled below (by being set to $false in the User-Variables |
+	|			region), then I did not touch and upgrade them and they may not work. 		|
+	|           Feel free to disable further reports if you do not need them.               |    
+	+---------------------------------------------------------------------------------------+
 
 #> 
 
 #region User-Variables
 # VBR Server (Server Name, FQDN or IP)
-#ORG $vbrServer = "yourVBRserver"
-$vbrServer = "lab-vbr11"
+$vbrServer = "localhost"
 # Report mode (RPO) - valid modes: any number of hours, Weekly or Monthly
 # 24, 48, "Weekly", "Monthly"
 $reportMode = 24
@@ -50,27 +55,24 @@ $showVBR = $true
 # HTML Report Width (Percent)
 $rptWidth = 97
 
-# Location of Veeam executable (Veeam.Backup.Shell.exe)
-$veeamExePath = "C:\Program Files\Veeam\Backup and Replication\Backup\Veeam.Backup.Shell.exe"
-
+# Location of Veeam Core dll  
+$VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Backup\Veeam.Backup.Core.dll"
 # Save HTML output to a file
-$saveHTML = $false
+$saveHTML = $true
 # HTML File output path and filename
-$pathHTML = "E:\MyVeeamReport_$(Get-Date -format MMddyyyy_hhmmss).htm"
+$pathHTML = ".\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss).htm"
 # Launch HTML file after creation
-$launchHTML = $false
+$launchHTML = $true
 
 # Email configuration
-$sendEmail = $true
-#ORG $emailHost = "smtp.yourserver.com"
-$emailHost = "192.168.30.10"
+$sendEmail = $false
+$emailHost = "smtp.yourserver.com"
 $emailPort = 25
 $emailEnableSSL = $false
 $emailUser = ""
 $emailPass = ""
 $emailFrom = "MyVeeamReport@yourdomain.com"
-#ORG $emailTo = "you@youremail.com"
-$emailTo = "admin@homelab.horstmann.in"
+$emailTo = "you@youremail.com"
 # Send HTML report as attachment (else HTML report is body)
 $emailAttach = $false
 # Email Subject 
@@ -82,6 +84,7 @@ $vbrSubject = $true
 # Append Date and Time to Email Subject
 $dtSubject = $false
 
+#--------------------- Disable reports you do not need by setting them to "$false" below:																						 
 # Show VM Backup Protection Summary (across entire infrastructure)
 $showSummaryProtect = $true
 # Show VMs with No Successful Backups within RPO ($reportMode)
@@ -168,33 +171,33 @@ $onlyLastRp = $false
 $replicaJob = @("")
 
 # Show Backup Copy Session Summary
-$showSummaryBc = $false
+$showSummaryBc = $true
 # Show Backup Copy Job Status
-$showJobsBc = $false
+$showJobsBc = $true
 # Show Backup Copy Job Size (total)
-$showBackupSizeBc = $false
+$showBackupSizeBc = $true
 # Show detailed information for Backup Copy Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
 $showDetailedBc = $true
 # Show all Backup Copy Sessions within time frame ($reportMode)
-$showAllSessBc = $false
+$showAllSessBc = $true
 # Show all Backup Copy Tasks from Sessions within time frame ($reportMode)
-$showAllTasksBc = $false
+$showAllTasksBc = $true
 # Show Idle Backup Copy Sessions
-$showIdleBc = $false
+$showIdleBc = $true
 # Show Pending Backup Copy Tasks
-$showPendingTasksBc = $false
+$showPendingTasksBc = $true
 # Show Working Backup Copy Jobs
-$showRunningBc = $false
+$showRunningBc = $true
 # Show Working Backup Copy Tasks
-$showRunningTasksBc = $false
+$showRunningTasksBc = $true
 # Show Backup Copy Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailBc = $false
+$showWarnFailBc = $true
 # Show Backup Copy Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFBc = $false
+$showTaskWFBc = $true
 # Show Successful Backup Copy Sessions within time frame ($reportMode)
-$showSuccessBc = $false
+$showSuccessBc = $true
 # Show Successful Backup Copy Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessBc = $false
+$showTaskSuccessBc = $true
 # Only show last Session for each Backup Copy Job
 $onlyLastBc = $false
 # Only report on the following Backup Copy Job(s)
@@ -202,33 +205,33 @@ $onlyLastBc = $false
 $bcopyJob = @("")
 
 # Show Tape Backup Session Summary
-$showSummaryTp = $false
+$showSummaryTp = $true
 # Show Tape Backup Job Status
-$showJobsTp = $false
+$showJobsTp = $true
 # Show detailed information for Tape Backup Sessions (Avg Speed, Total(GB), Read(GB), Transferred(GB))
 $showDetailedTp = $true
 # Show all Tape Backup Sessions within time frame ($reportMode)
-$showAllSessTp = $false
+$showAllSessTp = $true
 # Show all Tape Backup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksTp = $false
+$showAllTasksTp = $true
 # Show Waiting Tape Backup Sessions
-$showWaitingTp = $false
+$showWaitingTp = $true
 # Show Idle Tape Backup Sessions
-$showIdleTp = $false
+$showIdleTp = $true
 # Show Pending Tape Backup Tasks
-$showPendingTasksTp = $false
+$showPendingTasksTp = $true
 # Show Working Tape Backup Jobs
-$showRunningTp = $false
+$showRunningTp = $true
 # Show Working Tape Backup Tasks
-$showRunningTasksTp = $false
+$showRunningTasksTp = $true
 # Show Tape Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailTp = $false
+$showWarnFailTp = $true
 # Show Tape Backup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFTp = $false
+$showTaskWFTp = $true
 # Show Successful Tape Backup Sessions within time frame ($reportMode)
-$showSuccessTp = $false
+$showSuccessTp = $true
 # Show Successful Tape Backup Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessTp = $false
+$showTaskSuccessTp = $true
 # Only show last Session for each Tape Backup Job
 $onlyLastTp = $false
 # Only report on the following Tape Backup Job(s)
@@ -236,19 +239,19 @@ $onlyLastTp = $false
 $tapeJob = @("")
 
 # Show all Tapes
-$showTapes = $false
+$showTapes = $true
 # Show all Tapes by (Custom) Media Pool
-$showTpMp = $false
+$showTpMp = $true
 # Show all Tapes by Vault
-$showTpVlt = $false
+$showTpVlt = $true
 # Show all Expired Tapes
-$showExpTp = $false
+$showExpTp = $true
 # Show Expired Tapes by (Custom) Media Pool
-$showExpTpMp = $false
+$showExpTpMp = $true
 # Show Expired Tapes by Vault
-$showExpTpVlt = $false
+$showExpTpVlt = $true
 # Show Tapes written to within time frame ($reportMode)
-$showTpWrt = $false
+$showTpWrt = $true
 
 # Show Agent Backup Session Summary
 $showSummaryEp = $true
@@ -270,6 +273,23 @@ $onlyLastEp = $false
 #$epbJob = @("Agent Backup Job 1","Agent Backup Job 3","Agent Backup Job *")
 $epbJob = @("")
 
+# Show Configuration Backup Summary
+$showSummaryConfig = $true
+# Show Proxy Info
+$showProxy = $true
+# Show Repository Info
+$showRepo = $true
+# Show Repository Permissions for Agent Jobs
+$showRepoPerms = $true
+# Show Replica Target Info
+$showReplicaTarget = $true
+# Show Veeam Services Info (Windows Services)
+$showServices = $true
+# Show only Services that are NOT running
+$hideRunningSvc = $true
+# Show License expiry info
+$showLicExp = $true
+<# Start of unchanged reports since version 9.5.3
 # Show SureBackup Session Summary
 $showSummarySb = $false
 # Show SureBackup Job Status
@@ -296,22 +316,41 @@ $onlyLastSb = $false
 #$surebJob = @("SureBackup Job 1","SureBackup Job 3","SureBackup Job *")
 $surebJob = @("")
 
-# Show Configuration Backup Summary
-$showSummaryConfig = $true
-# Show Proxy Info
-$showProxy = $true
-# Show Repository Info
-$showRepo = $true
-# Show Repository Permissions for Agent Jobs
-$showRepoPerms = $true
-# Show Replica Target Info
-$showReplicaTarget = $true
-# Show Veeam Services Info (Windows Services)
-$showServices = $true
-# Show only Services that are NOT running
-$hideRunningSvc = $true
-# Show License expiry info
-$showLicExp = $true
+# Show Replication Session Summary
+$showSummaryRp = $false
+# Show Replication Job Status
+$showJobsRp = $false
+# Show detailed information for Replication Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
+$showDetailedRp = $false
+# Show all Replication Sessions within time frame ($reportMode)
+$showAllSessRp = $false
+# Show all Replication Tasks from Sessions within time frame ($reportMode)
+$showAllTasksRp = $false
+# Show Running Replication Jobs
+$showRunningRp = $false
+# Show Running Replication Tasks
+$showRunningTasksRp = $false
+# Show Replication Sessions w/Warnings or Failures within time frame ($reportMode)
+$showWarnFailRp = $false
+# Show Replication Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
+$showTaskWFRp = $false
+# Show Successful Replication Sessions within time frame ($reportMode)
+$showSuccessRp = $false
+# Show Successful Replication Tasks from Sessions within time frame ($reportMode)
+$showTaskSuccessRp = $false
+# Only show last session for each Replication Job
+$onlyLastRp = $false
+# Only report on the following Replication Job(s)
+#$replicaJob = @("Replica Job 1","Replica Job 3","Replica Job *")
+$replicaJob = @("")
+
+# Show Running Restore VM Sessions
+$showRestoRunVM = $false
+# Show Completed Restore VM Sessions within time frame ($reportMode)
+$showRestoreVM = $false
+
+end of excluded unchanged reports since version 9.5.3 #>
+
 
 # Highlighting Thresholds
 # Repository Free Space Remaining %
@@ -326,9 +365,38 @@ $licenseWarn = 90
 #endregion
  
 #region VersionInfo
-$MVRversion = "11.0.0"
+$MVRversion = "11.0.1.4"
+
+# Version 11.0.1.4 MH - 2022-03-23
+# Merged Herberts and my version
+
+
+# Version 11.0.1.3 HS - 2022-03-20
+# fixed backup copy reports  
+
+# Version 11.0.1.2 HS - 2022-03-14
+# fixed Agent job status
+# added non-veeam data column to repo display
+# modified html output a little bit to enhance readability
+
+# Version 11.0.1.1 HS - 2022-03-12
+# Removed support for versions below 11, unfortunately I have no time to
+# support the old Cmdlets
+# fixed license details display
+# fixed mediapool display
+# fixed Repository display and added a column for backupsize
+# added VCSP and SAN Snapshots as additional Repositorytypes
+# added a few runtime messages
+# added more detailed version display
+# fixed next runtime display in job report
+
+
+# Version 11.0.0.1 HS - 2021-01-27
+# Support of V11 GA, removed powershell snapin, replaced deprecated calls
+
 # Version 11.0.0 - MH
-# Updated script to work with VBR 11
+# Updated script to work with VBR 11 Beta
+
 # Version 9.5.3 - SM
 # Updated property changes introduced in VBR 9.5 Update 3
 
@@ -573,20 +641,10 @@ $MVRversion = "11.0.0"
 #endregion
 
 #region Connect
-# Load Veeam Snapin
- 
-try {
-    import-module Veeam.Backup.PowerShell -ErrorAction Stop
-} catch  {
-    try {
-        Add-PSSnapin VeeamPSSnapin -ErrorAction Stop
-    } catch  {
-                Write-Host "Error loading powershell modules" -ForegroundColor Red
-                exit
-            }
-    }
+
 
 # Connect to VBR server
+Write-Host "Connecting ..."				   
 $OpenConnection = (Get-VBRServerSession).Server
 If ($OpenConnection -ne $vbrServer){
   Disconnect-VBRServer
@@ -609,15 +667,14 @@ If ($showSummaryBk + $showJobsBk + $showAllSessBk + $showAllTasksBk + $showRunni
   $showSummaryBc + $showJobsBc + $showAllSessBc + $showAllTasksBc + $showIdleBc +
   $showPendingTasksBc + $showRunningBc + $showRunningTasksBc + $showWarnFailBc +
   $showTaskWFBc + $showSuccessBc + $showTaskSuccessBc) {
-  $allJobs = Get-VBRJob
+  $allJobs = Get-VBRJob -WarningAction SilentlyContinue
 }
 # Get all Backup Jobs
 $allJobsBk = @($allJobs | ?{$_.JobType -eq "Backup"})
 # Get all Replication Jobs
 $allJobsRp = @($allJobs | ?{$_.JobType -eq "Replica"})
 # Get all Backup Copy Jobs
-$allJobsBc = @($allJobs | ?{$_.JobType -eq "BackupSync"})
-# Get all Tape Jobs
+$allJobsBc = @($allJobs | ?{$_.JobType -eq "BackupSync" -or $_.JobType -eq "SimpleBackupCopyPolicy"})# Get all Tape Jobs
 $allJobsTp = @()
 If ($showSummaryTp + $showJobsTp + $showAllSessTp + $showAllTasksTp +
   $showWaitingTp + $showIdleTp + $showPendingTasksTp + $showRunningTp + $showRunningTasksTp +
@@ -628,7 +685,7 @@ If ($showSummaryTp + $showJobsTp + $showAllSessTp + $showAllTasksTp +
 $allJobsEp = @()
 If ($showSummaryEp + $showJobsEp + $showAllSessEp + $showRunningEp +
   $showWarnFailEp + $showSuccessEp) {
-  $allJobsEp = @(Get-VBREPJob)
+  $allJobsEp = @(Get-VBRComputerBackupJob)
 }
 # Get all SureBackup Jobs
 $allJobsSb = @()
@@ -659,7 +716,7 @@ If ($allJobsTp) {
 # Get all Agent Backup Sessions
 $allSessEp = @()
 If ($allJobsEp) {
-  $allSessEp = Get-VBREPSession
+  $allSessEp = Get-VBRComputerBackupJobSession
 }
 # Get all SureBackup Sessions
 $allSessSb = @()
@@ -736,6 +793,7 @@ If ($onlyLastBk) {
 # Get Backup Session information
 $totalXferBk = 0
 $totalReadBk = 0
+
 $sessListBk | %{$totalXferBk += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
 $sessListBk | %{$totalReadBk += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
 $successSessionsBk = @($sessListBk | ?{$_.Result -eq "Success"})
@@ -1014,6 +1072,8 @@ Function Get-VBRRepoInfo {
         StorageFree = [Math]::Round([Decimal]$free/1GB,2)
         StorageTotal = [Math]::Round([Decimal]$total/1GB,2)
         FreePercentage = [Math]::Round(($free/$total)*100)
+        StorageBackup = [Math]::Round([Decimal]$rBackupsize/1GB,2)
+        StorageOther = [Math]::Round([Decimal]($total-$rBackupsize-$free)/1GB-0.5,2)																					
         MaxTasks = $maxtasks
         rType = $rtype
       }
@@ -1074,18 +1134,22 @@ Function Get-VBRSORepoInfo {
         $r = $rp.Repository 
         # Refresh Repository Size Info
         [Veeam.Backup.Core.CBackupRepositoryEx]::SyncSpaceInfoToDb($r, $true)           
+		$rBackupSize = [Veeam.Backup.Core.CBackupRepository]::GetRepositoryBackupsSize($r.Id.Guid)
         $rType = switch ($r.Type) {
           "WinLocal" {"Windows Local"}
           "LinuxLocal" {"Linux Local"}
           "CifsShare" {"CIFS Share"}
           "DataDomain" {"Data Domain"}
           "ExaGrid" {"ExaGrid"}
-          "HPStoreOnce" {"HP StoreOnce"}
+          "HPStoreOnce" {"HPE StoreOnce"}
           "Nfs" {"NFS Direct"}
+          "SanSnapshotOnly" {"SAN Snapshot"}
+          "Cloud" {"VCSP Cloud"}								
           default {"Unknown"}     
         }
-        #ToDo: Check v10 Compatiblity. the .GetContainer().*.InBytes needs maybe removed. Maybe with if version Xy than? See other  function Get-VBRRepoInfo
-        $outputObj = Build-Object $rs.Name $r.Name $($r.GetHost()).Name.ToLower() $r.Path $r.GetContainer().CachedFreeSpace.InBytes $r.GetContainer().CachedTotalSpace.InBytes $r.Options.MaxTaskCount $rType $r.EnableCapacityTier
+		if ($rtype -eq "SAN Snapshot" -or $rtype -eq "VCSP Cloud") {$maxTaskCount="N/A"} 
+		else {$maxTaskCount=$r.Options.MaxTaskCount}
+        $outputObj = Build-Object $rs.Name $r.Name $($r.GetHost()).Name.ToLower() $r.Path $r.GetContainer().CachedFreeSpace.InBytes $r.GetContainer().CachedTotalSpace.InBytes $maxTaskCount $rType $rBackupSize
         $outputAry += $outputObj
       }
     } 
@@ -1159,11 +1223,21 @@ Function Get-VBRReplicaTarget {
  
 Function Get-VeeamVersion {
   Try {
-    $veeamExe = Get-Item $veeamExePath
-    $VeeamVersion = $veeamExe.VersionInfo.ProductVersion
-    Return $VeeamVersion
+    $veeamCore = Get-Item -Path $veeamCorePath
+    $VeeamVersion = [single]($veeamCore.VersionInfo.ProductVersion).substring(0,4)
+    $productVersion=[string]$veeamCore.VersionInfo.ProductVersion
+    $productHotfix=[string]$veeamCore.VersionInfo.Comments
+	Write-Host "Found Veeam Version       : $productVersion"
+	Write-Host "$productHotfix"
+    $objectVersion = New-Object -TypeName PSObject -Property @{
+          VeeamVersion = $VeeamVersion
+          productVersion = $productVersion
+          productHotfix = $productHotfix
+    }
+	
+    Return $objectVersion
   } Catch {
-    Write-Host "Unable to Locate Veeam executable, check path - $veeamExePath" -ForegroundColor Red
+    Write-Host "Unable to Locate Veeam Core, check path - $veeamCorePath" -ForegroundColor Red
     exit  
   }
 } 
@@ -1181,7 +1255,7 @@ Function Get-VeeamSupportDate {
     $regBinary = ($wmi.GetBinaryValue($hklm, $bKey, $bValue)).uValue
     $veeamLicInfo = [string]::Join($null, ($regBinary | % { [char][int]$_; }))
     # Convert Binary key
-    $pattern = “License expires\=\d{1,2}\/\d{1,2}\/\d{1,4}”
+    $pattern = "License expires\=\d{1,2}\/\d{1,2}\/\d{1,4}"
     $expirationDate = [regex]::matches($VeeamLicInfo, $pattern)[0].Value.Split("=")[1]
     $datearray = $expirationDate -split '/'
     $expirationDate = Get-Date -Day $datearray[0] -Month $datearray[1] -Year $datearray[2]
@@ -1402,15 +1476,18 @@ Function Get-MultiJobs {
  
 #region Report
 # Get Veeam Version
-[version]$VeeamVersion = Get-VeeamVersion
-[version]$VeeamMinVersion = "11.0.0.591"
+$objectVersion = Get-VeeamVersion
+										
 
-if ($VeeamVersion -lt $VeeamMinVersion) {
-  Write-Host "Script requires VBR v11" -ForegroundColor Red
-  Write-Host "Version detected - $VeeamVersion" -ForegroundColor Red
+If ($objectVersion.VeeamVersion -lt 11.0) {
+  Write-Host "Script requires VBR v11.0 or higher" -ForegroundColor Red
+																	
   exit
 }
 
+
+Write-Host "Generating reports, please be patient ..."
+													  
 # HTML Stuff
 $headerObj = @"
 <html>
@@ -1658,9 +1735,9 @@ If ($showJobsBk) {
         @{Name="Next Run"; Expression = {
           If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
           ElseIf ($_.Options.JobOptions.RunManually) {"<not scheduled>"}
-          ElseIf ($_.ScheduleOptions.IsContinious) {"<Continious>"}
-          ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where {$_.Id -eq $bkJob.Info.ParentScheduleId}).Name + "]"}
-          Else {$_.ScheduleOptions.NextRun}
+          ElseIf ($_.ScheduleOptions.IsContinuous) {"<Continuous>"}
+		  ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where {$_.Id -eq $bkJob.Info.ParentScheduleId}).Name + "]"}
+		  Else {$_.ScheduleOptions.NextRun}
         }},
         @{Name="Last Result"; Expression = {If ($_.Info.LatestStatus -eq "None"){"Unknown"}Else{$_.Info.LatestStatus}}}
     }
@@ -2104,7 +2181,7 @@ If ($showJobsRp) {
         @{Name="Next Run"; Expression = {
           If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
           ElseIf ($_.Options.JobOptions.RunManually) {"<not scheduled>"}
-          ElseIf ($_.ScheduleOptions.IsContinious) {"<Continious>"}
+          ElseIf ($_.ScheduleOptions.IsContinuous) {"<Continuous>"}
           ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where {$_.Id -eq $rpJob.Info.ParentScheduleId}).Name + "]"}
           Else {$_.ScheduleOptions.NextRun}}},
         @{Name="Last Result"; Expression = {If ($_.Info.LatestStatus -eq "None"){""}Else{$_.Info.LatestStatus}}}
@@ -2960,7 +3037,7 @@ If ($showJobsTp) {
         @{Name="Job Type"; Expression = {$_.Type}},@{Name="Media Pool"; Expression = {$_.Target}},
         @{Name="Status"; Expression = {$_.LastState}},
         @{Name="Next Run"; Expression = {
-          If ($_.ScheduleOptions.Type -eq "AfterNewBackup") {"<Continious>"}
+          If ($_.ScheduleOptions.Type -eq "AfterNewBackup") {"<Continuous>"}
           ElseIf ($_.ScheduleOptions.Type -eq "AfterJob") {"After [" + $(($allJobs + $allJobsTp) | Where {$_.Id -eq $tpJob.ScheduleOptions.JobId}).Name + "]"}
           ElseIf ($_.NextRun) {$_.NextRun}
           Else {"<not scheduled>"}}},
@@ -3694,9 +3771,13 @@ If ($showJobsEp) {
   If ($allJobsEp.count -gt 0) {
     $bodyJobsEp = $allJobsEp | Sort Name | Select @{Name="Job Name"; Expression = {$_.Name}},
       @{Name="Description"; Expression = {$_.Description}},
-      @{Name="Enabled"; Expression = {$_.IsEnabled}},@{Name="Status"; Expression = {$_.LastState}},
-      @{Name="Target Repo"; Expression = {$_.Target}}, @{Name="Next Run"; Expression = {$_.NextRun}},
-      @{Name="Last Result"; Expression = {If ($_.LastResult -eq "None"){""}Else{$_.LastResult}}} | ConvertTo-HTML -Fragment
+      @{Name="Enabled"; Expression = {$_.JobEnabled}},
+      @{Name="Status"; Expression = {(Get-VBRComputerBackupJobSession -Name $_.Name)[0].state}},
+      @{Name="Target Repo"; Expression = {$_.BackupRepository.Name}}, 
+      @{Name="Next Run"; Expression = {
+                If ($_.ScheduleEnabled -eq $false) {"<not scheduled>"}
+                Else {(Get-VBRJobScheduleOptions -Job $_).nextrun}}},
+      @{Name="Last Result"; Expression = {(Get-VBRComputerBackupJobSession -Name $_.Name)[0].result}} | ConvertTo-HTML -Fragment
     $bodyJobsEp = $subHead01 + "Agent Backup Job Status" + $subHead02 + $bodyJobsEp
   }
 }
@@ -3865,7 +3946,7 @@ If ($showJobsSb) {
         @{Name="Next Run"; Expression = {
           If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
           ElseIf ($_.JobOptions.RunManually) {"<not scheduled>"}
-          ElseIf ($_.ScheduleOptions.IsContinious) {"<Continious>"}
+          ElseIf ($_.ScheduleOptions.IsContinuous) {"<Continuous>"}
           ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where {$_.Id -eq $SbJob.Info.ParentScheduleId}).Name + "]"}
           Else {$_.ScheduleOptions.NextRun}}},
         @{Name="Last Result"; Expression = {If ($_.GetLastResult() -eq "None"){""}Else{$_.GetLastResult()}}}
@@ -4129,13 +4210,18 @@ $bodyRepo = $null
 If ($showRepo) {
   If ($repoList -ne $null) {
     $arrRepo = $repoList | Get-VBRRepoInfo | Select @{Name="Repository Name"; Expression = {$_.Target}},
-      @{Name="Type"; Expression = {$_.rType}}, @{Name="Max Tasks"; Expression = {$_.MaxTasks}},
-      @{Name="Host"; Expression = {$_.RepoHost}}, @{Name="Path"; Expression = {$_.Storepath}},
-      @{Name="Free (GB)"; Expression = {$_.StorageFree}}, @{Name="Total (GB)"; Expression = {$_.StorageTotal}},
+      @{Name="Type"; Expression = {$_.rType}}, 
+      @{Name="Max Tasks"; Expression = {$_.MaxTasks}},
+      @{Name="Host"; Expression = {$_.RepoHost}}, 
+      @{Name="Path"; Expression = {$_.Storepath}}, 
+      @{Name="Backups (GB)"; Expression = {$_.StorageBackup}}, 
+      @{Name="Other data (GB)"; Expression = {$_.StorageOther}}, 
+      @{Name="Free (GB)"; Expression = {$_.StorageFree}},
+      @{Name="Total (GB)"; Expression = {$_.StorageTotal}},
       @{Name="Free (%)"; Expression = {$_.FreePercentage}},
       @{Name="Status"; Expression = {
         If ($_.FreePercentage -lt $repoCritical) {"Critical"}
-        ElseIf ($_.StorageTotal -eq 0)  {"Warning"} 
+        ElseIf ($_.StorageTotal -eq 0 -and $_.rtype -ne "SAN Snapshot")  {"Warning"} 
         ElseIf ($_.FreePercentage -lt $repoWarn) {"Warning"}
         ElseIf ($_.FreePercentage -eq "Unknown") {"Unknown"}
         Else {"OK"}}
@@ -4153,16 +4239,21 @@ If ($showRepo) {
     $bodyRepo = $repoHead + "Repository Details" + $subHead02 + $bodyRepo
   }
 }
-
 # Get Scale Out Repository Info
 $bodySORepo = $null
 If ($showRepo) {
   If ($repoListSo -ne $null) {
     $arrSORepo = $repoListSo | Get-VBRSORepoInfo | Select @{Name="Scale Out Repository Name"; Expression = {$_.SOTarget}},
-      @{Name="Member Repository Name"; Expression = {$_.Target}}, @{Name="Type"; Expression = {$_.rType}},
-      @{Name="Max Tasks"; Expression = {$_.MaxTasks}}, @{Name="Host"; Expression = {$_.RepoHost}},
-      @{Name="Path"; Expression = {$_.Storepath}}, @{Name="Free (GB)"; Expression = {$_.StorageFree}},
-      @{Name="Total (GB)"; Expression = {$_.StorageTotal}}, @{Name="Free (%)"; Expression = {$_.FreePercentage}},
+      @{Name="Member Name"; Expression = {$_.Target}}, 
+	  @{Name="Type"; Expression = {$_.rType}},
+      @{Name="Max Tasks"; Expression = {$_.MaxTasks}}, 
+	  @{Name="Host"; Expression = {$_.RepoHost}},
+      @{Name="Path"; Expression = {$_.Storepath}}, 
+      @{Name="Backups (GB)"; Expression = {$_.StorageBackup}}, 
+      @{Name="Other data (GB)"; Expression = {$_.StorageOther}},
+	  @{Name="Free (GB)"; Expression = {$_.StorageFree}},
+      @{Name="Total (GB)"; Expression = {$_.StorageTotal}}, 
+	  @{Name="Free (%)"; Expression = {$_.FreePercentage}},
       @{Name="Status"; Expression = {
         If ($_.FreePercentage -lt $repoCritical) {"Critical"}
         ElseIf ($_.StorageTotal -eq 0)  {"Warning"}
@@ -4384,7 +4475,7 @@ If ($sendEmail) {
   If ($emailAttach) {
     $body = "Veeam Report Attached"
     $msg.Body = $body
-    $tempFile = "$env:TEMP\$($rptTitle)_$(Get-Date -format MMddyyyy_hhmmss).htm"
+    $tempFile = "$env:TEMP\$($rptTitle)_$(Get-Date -format yyyyMMdd_HHmmss).htm"
     $htmlOutput | Out-File $tempFile
     $attachment = new-object System.Net.Mail.Attachment $tempFile
     $msg.Attachments.Add($attachment)
