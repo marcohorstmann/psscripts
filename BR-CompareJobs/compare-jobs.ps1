@@ -110,11 +110,13 @@ ForEach ($job in $compareJobs) {
     Write-MHOLog -Info "-------------------------------------------------------------------------`n" -Status Info
     #Compare-Object -IncludeEqual $referenceJob $job
     # Compare-Object $a $b -Property ProcessName, Id, CPU
+    <# Check High Priority
     if($referenceJob.IsHighPriority() -ne $job.IsHighPriority()) {
         Write-MHOLog -Info "High Priority Setting differs from Reference. This job is set to $($job.IsHighPriority())" -Status Warning
     } else {
         Write-MHOLog -Info "High Priority Setting is the same as Reference." -Status Info
     }
+    #>
 
     #$job.Info
     
