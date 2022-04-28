@@ -62,7 +62,11 @@ Import-Module ..\include\mho-veeam\mho-veeam.psm1 -ErrorAction stop
 # If function can be reused think about to add it to the imported modules
 # to make this functions reusable across multiple scripts.
 #
-
+function Get-MHOVbrJobDetails($job) {
+    
+    
+    return $jobDetails
+}
 
 #
 # SCRIPT FUNCTIONS END
@@ -79,17 +83,14 @@ Start-MHOLog
 # Load Veeam Backup Module
 Import-MHOVeeamBackupModule
 
-
-
-#$creds = Get-VBRCredentials -Name "root" | ? { $_.Description -match "root" }
-
-#Write-MHOLog -Info "This is the text which will be logged to the log file" -Status Error
+#Get first all jobs to reduce number of requests to the VBR server
 $jobs = Get-VBRJob | ?{$_.JobType -eq "Backup"}
 
+<#
 # Get all Repositories Normal and Scale-Out
-$repositories = Get-VBRBackupRepository
-$repositories += Get-VBRBackupRepository -ScaleOut
-
+#$repositories = Get-VBRBackupRepository
+#$repositories += Get-VBRBackupRepository -ScaleOut
+#>
 
 #ToDo: Errorhandling if both are empty
 $referenceJob = $jobs | Sort-Object -Property Name | Out-GridView -OutputMode Single -Title "Please select reference job"
@@ -118,13 +119,65 @@ ForEach ($job in $compareJobs) {
     }
     #>
 
+    <# Was will ich in einer Tabelle sehen?
+
+    High Priority
+
+    Which backup repo is used: $job.GetBackupTargetRepository().name
+
+    $job.BackupStorageOptions.RetentionType # Cycles or Days
+    $job.BackupStorageOptions.RetainCycles  #Number of Cycles
+    $job.BackupStorageOptions.RetainDays # Number of days of RetaintionType is Days
+    $job.BackupStorageOptions
+
+    # EnableDeletedVmDataRetention : False # ggf. deleted vms synthe
+    # CompressionLevel             : 5
+    #EnableDeduplication          : True
+    #StgBlockSize                 : KbBlockSize1024 # Welche Blocksize wird verwendet
+    # ??????? EnableIntegrityChecks        : True
+    # UseSpecificStorageEncryption : False # ??? verschlüsselung
+    # StorageEncryptionEnabled     : False # ??? verschlüsselung
+
+    $job.Options.GfsPolicy
+
+    $job.Options.GfsPolicy.Weekly
+
+IsEnabled KeepBackupsForNumberOfWeeks DesiredTime BeginTimeLocal     
+--------- --------------------------- ----------- --------------     
+    False                           1      Sunday 01.01.0001 00:00:00
+
+
+
+     $job.Options.GfsPolicy.Monthly
+
+IsEnabled KeepBackupsForNumberOfMonths DesiredTime BeginTimeLocal     
+--------- ---------------------------- ----------- --------------     
+    False                            1       First 01.01.0001 00:00:00
+
+
+
+     $job.Options.GfsPolicy.Yearly
+
+IsEnabled KeepBackupsForNumberOfYears DesiredTime BeginTimeLocal     
+--------- --------------------------- ----------- --------------     
+    False                           1     January 01.01.0001 00:00:00
+
+
+    #>
+
     #$job.Info
     
     #$repositories | where {$_.id -eq $job.Info.TargetRepositoryId} | select name
 
     #Log Shippping
     $jobProxy = [Veeam.Backup.Core.COijProxy]::GetOijProxiesByJob($job.Id)
-    Write-MHOLog -Status Info -Info "This backup job using Log Shipping Server(s) $($jobProxy.Proxy.Name)"
+    if($jobProxy.Proxy.Name -eq $null) {
+        Write-MHOLog -Status Info -Info "This backup job doesn't has Log Shipping configured"
+    } elseif($referenceJobProxy.Proxy.Name -eq $jobProxy.Proxy.Name) {
+        Write-MHOLog -Status Warning -Info "This backup job using other Log Shipping Server(s) then Reference: $($jobProxy.Proxy.Name)"
+    } else {
+        Write-MHOLog -Status Info -Info "This backup job using Log Shipping Server(s) $($jobProxy.Proxy.Name)"
+    }
 
     #Hier die Backup Job Objects
     [Array]$jobBackupObjects = Get-VBRJobObject $job
@@ -363,26 +416,7 @@ Write-Host "`n`n"
 Write-Host "Press any key to continue ..." -foregroundcolor Gray
 $x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     #>
+
+
+#THIS IS THE END
 }
-
-<#
-$job1 = Get-VBRJob -Name "Harded Backup Job"
-$job2 = Get-VBRJob -Name "Infrastructure Backup"
-
-$job1BackupObjects = Get-VBRJobObject $job1
-$job1BackupObjectsVssOptions = Get-VBRJobObjectVssOptions -ObjectInJob $job1BackupObjects
-#rausfinden wo man sehen kann dass der Log Shipping Server 
-$job1Proxy = [Veeam.Backup.Core.COijProxy]::GetOijProxiesByJob($job1.Id)
-
-$job2BackupObjects = Get-VBRJobObject $job2
-$job2BackupObjectsVssOptions = Get-VBRJobObjectVssOptions -ObjectInJob $job2BackupObjects
-$job2Proxy = [Veeam.Backup.Core.COijProxy]::GetOijProxiesByJob($job2.Id)
-
-Write-Host "Job 1:  $($job1BackupObjectsVssOptions.SqlBackupOptions.BackupLogsEnabled)  ###  Job 2:  $($job2BackupObjectsVssOptions.SqlBackupOptions.BackupLogsEnabled)"
-Write-Host "Job 1: $($job1Proxy.Proxy.Name)  ### Job 2: $($job2Proxy.Proxy.Name)"
-
-
-Get-Process | Out-GridView
-Get-Process | Select-Object -Property Name, WorkingSet, PeakWorkingSet |
-  Sort-Object -Property WorkingSet -Descending | Out-GridView
-#>
