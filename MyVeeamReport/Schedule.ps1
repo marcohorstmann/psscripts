@@ -27,7 +27,7 @@ $Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument $Script -W
 
 # Task settings: Win8/Server2016 compatibility, 15 minute max. runtime, start if schedule is missed (e.g. for updates or reboot)
 $Setting = New-ScheduledTaskSettingsSet -Compatibility Win8 -ExecutionTimeLimit (New-TimeSpan -Minutes 15) -StartWhenAvailable
-# Optional: Run only if network is available for email. Useful if report is not saved loally
+# Optional: Run only if network is available for email. Useful if report is not saved locally
 # -RunOnlyIfNetworkAvailable
 
 # Register Task
