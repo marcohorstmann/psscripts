@@ -43,333 +43,23 @@
 #> 
 
 #region User-Variables
-# VBR Server (Server Name, FQDN or IP)
-$vbrServer = "localhost"
-# Report mode (RPO) - valid modes: any number of hours, Weekly or Monthly
-# 24, 48, "Weekly", "Monthly"
-$reportMode = 24
-# Report Title
-$rptTitle = "My Veeam Report"
-# Show VBR Server name in report header
-$showVBR = $true
-# HTML Report Width (Percent)
-$rptWidth = 97
-
-# Location of Veeam Core dll  
-$VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Backup\Veeam.Backup.Core.dll"
-# Save HTML output to a file
-$saveHTML = $true
-# HTML File output path and filename
-$pathHTML = ".\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss).htm"
-# Launch HTML file after creation
-$launchHTML = $true
-
-# Email configuration
-$sendEmail = $false
-$emailHost = "smtp.yourserver.com"
-$emailPort = 25
-$emailEnableSSL = $false
-$emailUser = ""
-$emailPass = ""
-$emailFrom = "MyVeeamReport@yourdomain.com"
-$emailTo = "you@youremail.com"
-# Send HTML report as attachment (else HTML report is body)
-$emailAttach = $false
-# Email Subject 
-$emailSubject = $rptTitle
-# Append Report Mode to Email Subject E.g. My Veeam Report (Last 24 Hours)
-$modeSubject = $true
-# Append VBR Server name to Email Subject
-$vbrSubject = $true
-# Append Date and Time to Email Subject
-$dtSubject = $false
-
-#--------------------- Disable reports you do not need by setting them to "$false" below:																						 
-# Show VM Backup Protection Summary (across entire infrastructure)
-$showSummaryProtect = $true
-# Show VMs with No Successful Backups within RPO ($reportMode)
-$showUnprotectedVMs = $true
-# Show VMs with Successful Backups within RPO ($reportMode)
-# Also shows VMs with Only Backups with Warnings within RPO ($reportMode)
-$showProtectedVMs = $true
-# Exclude VMs from Missing and Successful Backups sections
-# $excludevms = @("vm1","vm2","*_replica")
-$excludeVMs = @("")
-# Exclude VMs from Missing and Successful Backups sections in the following (vCenter) folder(s)
-# $excludeFolder = @("folder1","folder2","*_testonly")
-$excludeFolder = @("")
-# Exclude VMs from Missing and Successful Backups sections in the following (vCenter) datacenter(s)
-# $excludeDC = @("dc1","dc2","dc*")
-$excludeDC = @("")
-# Exclude Templates from Missing and Successful Backups sections
-$excludeTemp = $false
-
-# Show VMs Backed Up by Multiple Jobs within time frame ($reportMode)
-$showMultiJobs = $true
-
-# Show Backup Session Summary
-$showSummaryBk = $true
-# Show Backup Job Status
-$showJobsBk = $true
-# Show Backup Job Size (total)
-$showBackupSizeBk = $true
-# Show detailed information for Backup Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedBk = $true
-# Show all Backup Sessions within time frame ($reportMode)
-$showAllSessBk = $true
-# Show all Backup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksBk = $true
-# Show Running Backup Jobs
-$showRunningBk = $true
-# Show Running Backup Tasks
-$showRunningTasksBk = $true
-# Show Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailBk = $true
-# Show Backup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFBk = $true
-# Show Successful Backup Sessions within time frame ($reportMode)
-$showSuccessBk = $true
-# Show Successful Backup Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessBk = $true
-# Only show last Session for each Backup Job
-$onlyLastBk = $false
-# Only report on the following Backup Job(s)
-#$backupJob = @("Backup Job 1","Backup Job 3","Backup Job *")
-$backupJob = @("")
-
-# Show Running Restore VM Sessions
-$showRestoRunVM = $true
-# Show Completed Restore VM Sessions within time frame ($reportMode)
-$showRestoreVM = $true
-
-# Show Replication Session Summary
-$showSummaryRp = $false
-# Show Replication Job Status
-$showJobsRp = $false
-# Show detailed information for Replication Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedRp = $true
-# Show all Replication Sessions within time frame ($reportMode)
-$showAllSessRp = $false
-# Show all Replication Tasks from Sessions within time frame ($reportMode)
-$showAllTasksRp = $false
-# Show Running Replication Jobs
-$showRunningRp = $false
-# Show Running Replication Tasks
-$showRunningTasksRp = $false
-# Show Replication Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailRp = $false
-# Show Replication Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFRp = $false
-# Show Successful Replication Sessions within time frame ($reportMode)
-$showSuccessRp = $false
-# Show Successful Replication Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessRp = $false
-# Only show last session for each Replication Job
-$onlyLastRp = $false
-# Only report on the following Replication Job(s)
-#$replicaJob = @("Replica Job 1","Replica Job 3","Replica Job *")
-$replicaJob = @("")
-
-# Show Backup Copy Session Summary
-$showSummaryBc = $true
-# Show Backup Copy Job Status
-$showJobsBc = $true
-# Show Backup Copy Job Size (total)
-$showBackupSizeBc = $true
-# Show detailed information for Backup Copy Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedBc = $true
-# Show all Backup Copy Sessions within time frame ($reportMode)
-$showAllSessBc = $true
-# Show all Backup Copy Tasks from Sessions within time frame ($reportMode)
-$showAllTasksBc = $true
-# Show Idle Backup Copy Sessions
-$showIdleBc = $true
-# Show Pending Backup Copy Tasks
-$showPendingTasksBc = $true
-# Show Working Backup Copy Jobs
-$showRunningBc = $true
-# Show Working Backup Copy Tasks
-$showRunningTasksBc = $true
-# Show Backup Copy Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailBc = $true
-# Show Backup Copy Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFBc = $true
-# Show Successful Backup Copy Sessions within time frame ($reportMode)
-$showSuccessBc = $true
-# Show Successful Backup Copy Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessBc = $true
-# Only show last Session for each Backup Copy Job
-$onlyLastBc = $false
-# Only report on the following Backup Copy Job(s)
-#$bcopyJob = @("Backup Copy Job 1","Backup Copy Job 3","Backup Copy Job *")
-$bcopyJob = @("")
-
-# Show Tape Backup Session Summary
-$showSummaryTp = $true
-# Show Tape Backup Job Status
-$showJobsTp = $true
-# Show detailed information for Tape Backup Sessions (Avg Speed, Total(GB), Read(GB), Transferred(GB))
-$showDetailedTp = $true
-# Show all Tape Backup Sessions within time frame ($reportMode)
-$showAllSessTp = $true
-# Show all Tape Backup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksTp = $true
-# Show Waiting Tape Backup Sessions
-$showWaitingTp = $true
-# Show Idle Tape Backup Sessions
-$showIdleTp = $true
-# Show Pending Tape Backup Tasks
-$showPendingTasksTp = $true
-# Show Working Tape Backup Jobs
-$showRunningTp = $true
-# Show Working Tape Backup Tasks
-$showRunningTasksTp = $true
-# Show Tape Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailTp = $true
-# Show Tape Backup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFTp = $true
-# Show Successful Tape Backup Sessions within time frame ($reportMode)
-$showSuccessTp = $true
-# Show Successful Tape Backup Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessTp = $true
-# Only show last Session for each Tape Backup Job
-$onlyLastTp = $false
-# Only report on the following Tape Backup Job(s)
-#$tapeJob = @("Tape Backup Job 1","Tape Backup Job 3","Tape Backup Job *")
-$tapeJob = @("")
-
-# Show all Tapes
-$showTapes = $true
-# Show all Tapes by (Custom) Media Pool
-$showTpMp = $true
-# Show all Tapes by Vault
-$showTpVlt = $true
-# Show all Expired Tapes
-$showExpTp = $true
-# Show Expired Tapes by (Custom) Media Pool
-$showExpTpMp = $true
-# Show Expired Tapes by Vault
-$showExpTpVlt = $true
-# Show Tapes written to within time frame ($reportMode)
-$showTpWrt = $true
-
-# Show Agent Backup Session Summary
-$showSummaryEp = $true
-# Show Agent Backup Job Status
-$showJobsEp = $true
-# Show Agent Backup Job Size (total)
-$showBackupSizeEp = $true
-# Show all Agent Backup Sessions within time frame ($reportMode)
-$showAllSessEp = $true
-# Show Running Agent Backup jobs
-$showRunningEp = $true
-# Show Agent Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailEp = $true
-# Show Successful Agent Backup Sessions within time frame ($reportMode)
-$showSuccessEp = $true
-# Only show last session for each Agent Backup Job
-$onlyLastEp = $false
-# Only report on the following Agent Backup Job(s)
-#$epbJob = @("Agent Backup Job 1","Agent Backup Job 3","Agent Backup Job *")
-$epbJob = @("")
-
-# Show Configuration Backup Summary
-$showSummaryConfig = $true
-# Show Proxy Info
-$showProxy = $true
-# Show Repository Info
-$showRepo = $true
-# Show Repository Permissions for Agent Jobs
-$showRepoPerms = $true
-# Show Replica Target Info
-$showReplicaTarget = $true
-# Show Veeam Services Info (Windows Services)
-$showServices = $true
-# Show only Services that are NOT running
-$hideRunningSvc = $true
-# Show License expiry info
-$showLicExp = $true
-<# Start of unchanged reports since version 9.5.3
-# Show SureBackup Session Summary
-$showSummarySb = $false
-# Show SureBackup Job Status
-$showJobsSb = $false
-# Show all SureBackup Sessions within time frame ($reportMode)
-$showAllSessSb = $false
-# Show all SureBackup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksSb = $false
-# Show Running SureBackup Jobs
-$showRunningSb = $false
-# Show Running SureBackup Tasks
-$showRunningTasksSb = $false
-# Show SureBackup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailSb = $false
-# Show SureBackup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFSb = $false
-# Show Successful SureBackup Sessions within time frame ($reportMode)
-$showSuccessSb = $false
-# Show Successful SureBackup Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessSb = $false
-# Only show last Session for each SureBackup Job
-$onlyLastSb = $false
-# Only report on the following SureBackup Job(s)
-#$surebJob = @("SureBackup Job 1","SureBackup Job 3","SureBackup Job *")
-$surebJob = @("")
-
-# Show Replication Session Summary
-$showSummaryRp = $false
-# Show Replication Job Status
-$showJobsRp = $false
-# Show detailed information for Replication Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedRp = $false
-# Show all Replication Sessions within time frame ($reportMode)
-$showAllSessRp = $false
-# Show all Replication Tasks from Sessions within time frame ($reportMode)
-$showAllTasksRp = $false
-# Show Running Replication Jobs
-$showRunningRp = $false
-# Show Running Replication Tasks
-$showRunningTasksRp = $false
-# Show Replication Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailRp = $false
-# Show Replication Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFRp = $false
-# Show Successful Replication Sessions within time frame ($reportMode)
-$showSuccessRp = $false
-# Show Successful Replication Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessRp = $false
-# Only show last session for each Replication Job
-$onlyLastRp = $false
-# Only report on the following Replication Job(s)
-#$replicaJob = @("Replica Job 1","Replica Job 3","Replica Job *")
-$replicaJob = @("")
-
-# Show Running Restore VM Sessions
-$showRestoRunVM = $false
-# Show Completed Restore VM Sessions within time frame ($reportMode)
-$showRestoreVM = $false
-
-end of excluded unchanged reports since version 9.5.3 #>
-
-
-# Highlighting Thresholds
-# Repository Free Space Remaining %
-$repoCritical = 10
-$repoWarn = 20
-# Replica Target Free Space Remaining %
-$replicaCritical = 10
-$replicaWarn = 20
-# License Days Remaining
-$licenseCritical = 30
-$licenseWarn = 90
+. .\MyVeeamReport_config.ps1
 #endregion
  
 #region VersionInfo
-$MVRversion = "11.0.1.4"
+$MVRversion = "11.0.1.5"
+
+# Version 11.0.1.5 BR - 2022-11-15
+# Update license retrieval code, support different license variants
+# Put configuration in external file
+# Add informational section header
+# Add option to show unprotected VMs for informational purposes only
+# Use computername instead of "localhost"
+# Fix VBR version in report header
+# Suppress error on Get-VBRTapeVault if not licensed
 
 # Version 11.0.1.4 MH - 2022-03-23
 # Merged Herberts and my version
-
 
 # Version 11.0.1.3 HS - 2022-03-20
 # fixed backup copy reports  
@@ -739,7 +429,11 @@ $backupsEp = @($jobBackups | ?{$_.JobType -eq "EndpointBackup"})
 # Get all Media Pools
 $mediaPools = Get-VBRTapeMediaPool
 # Get all Media Vaults
-$mediaVaults = Get-VBRTapeVault
+Try {
+    $mediaVaults = Get-VBRTapeVault
+} Catch {
+    # NOP, error is thown if not licensed
+}
 # Get all Tapes
 $mediaTapes = Get-VBRTapeMedium
 # Get all Tape Libraries
@@ -1242,37 +936,70 @@ Function Get-VeeamVersion {
   }
 } 
  
+# Function Get-VeeamSupportDate {
+#   param (
+#     [string]$vbrServer
+#   ) 
+#   # Query (remote) registry with WMI for license info
+#   Try{
+#     $wmi = get-wmiobject -list "StdRegProv" -namespace root\default -computername $vbrServer -ErrorAction Stop
+#     $hklm = 2147483650
+#     $bKey = "SOFTWARE\Veeam\Veeam Backup and Replication\license"
+#     $bValue = "Lic1"
+#     $regBinary = ($wmi.GetBinaryValue($hklm, $bKey, $bValue)).uValue
+#     $veeamLicInfo = [string]::Join($null, ($regBinary | % { [char][int]$_; }))
+#     # Convert Binary key
+#     $pattern = "License expires\=\d{1,2}\/\d{1,2}\/\d{1,4}"
+#     $expirationDate = [regex]::matches($VeeamLicInfo, $pattern)[0].Value.Split("=")[1]
+#     $datearray = $expirationDate -split '/'
+#     $expirationDate = Get-Date -Day $datearray[0] -Month $datearray[1] -Year $datearray[2]
+#     $totalDaysLeft = ($expirationDate - (get-date)).Totaldays.toString().split(",")[0]
+#     $totalDaysLeft = [int]$totalDaysLeft
+#     $objoutput = New-Object -TypeName PSObject -Property @{
+#       ExpDate = $expirationDate.ToShortDateString()
+#       DaysRemain = $totalDaysLeft
+#     }
+#   } Catch{
+#     $objoutput = New-Object -TypeName PSObject -Property @{
+#       ExpDate = "WMI Connection Failed"
+#       DaysRemain = "WMI Connection Failed"
+#     }
+#   }
+#   $objoutput
+# } 
+
+
 Function Get-VeeamSupportDate {
-  param (
-    [string]$vbrServer
-  ) 
-  # Query (remote) registry with WMI for license info
-  Try{
-    $wmi = get-wmiobject -list "StdRegProv" -namespace root\default -computername $vbrServer -ErrorAction Stop
-    $hklm = 2147483650
-    $bKey = "SOFTWARE\Veeam\Veeam Backup and Replication\license"
-    $bValue = "Lic1"
-    $regBinary = ($wmi.GetBinaryValue($hklm, $bKey, $bValue)).uValue
-    $veeamLicInfo = [string]::Join($null, ($regBinary | % { [char][int]$_; }))
-    # Convert Binary key
-    $pattern = "License expires\=\d{1,2}\/\d{1,2}\/\d{1,4}"
-    $expirationDate = [regex]::matches($VeeamLicInfo, $pattern)[0].Value.Split("=")[1]
-    $datearray = $expirationDate -split '/'
-    $expirationDate = Get-Date -Day $datearray[0] -Month $datearray[1] -Year $datearray[2]
-    $totalDaysLeft = ($expirationDate - (get-date)).Totaldays.toString().split(",")[0]
-    $totalDaysLeft = [int]$totalDaysLeft
-    $objoutput = New-Object -TypeName PSObject -Property @{
-      ExpDate = $expirationDate.ToShortDateString()
-      DaysRemain = $totalDaysLeft
+    param (
+        [string]$vbrServer
+    )
+    # Query (remote) registry with WMI for license info
+    $licenseInfo = Get-VBRInstalledLicense
+    
+    $type = $licenseinfo.Type
+
+    switch ( $type ) {
+        'Perpetual' {
+            $date = $licenseInfo.SupportExpirationDate
+        }
+        'Evaluation' {
+            # No expiration
+            $date = Get-Date
+        }
+        'Subscription' {
+            $date = $licenseInfo.ExpirationDate
+        }
+        'Rental' {
+            $date = $licenseInfo.ExpirationDate
+        }
     }
-  } Catch{
-    $objoutput = New-Object -TypeName PSObject -Property @{
-      ExpDate = "WMI Connection Failed"
-      DaysRemain = "WMI Connection Failed"
+
+    [PSCustomObject]@{
+       LicType    = $type
+       ExpDate    = $date.ToShortDateString()
+       DaysRemain = ($date - (Get-Date)).Days
     }
-  }
-  $objoutput
-} 
+}
 
 Function Get-VeeamWinServers {
   $vservers=@{}
@@ -1517,7 +1244,7 @@ $bodyTop = @"
                 </tr>
                 <tr>
                     <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: left;padding: 0px 0px 0px 5px;"></td>
-                    <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: right;padding: 0px 5px 0px 0px;">VBR v$VeeamVersion</td>
+                    <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: right;padding: 0px 5px 0px 0px;">VBR v$($objectVersion.productVersion)</td>
                 </tr>
                 <tr>
                     <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: left;padding: 0px 0px 2px 5px;">$rptMode</td>
@@ -1550,6 +1277,12 @@ $subHead01err = @"
                     <td style="height: 35px;background-color: #FB9895;color: #ffffff;font-size: 16px;padding: 5px 0 0 15px;border-top: 5px solid white;border-bottom: none;">
 "@
 
+$subHead01inf = @"
+<table>
+                <tr>
+                    <td style="height: 35px;background-color: #3399FF;color: #ffffff;font-size: 16px;padding: 5px 0 0 15px;border-top: 5px solid white;border-bottom: none;">
+"@
+
 $subHead02 = @"
 </td>
                 </tr>
@@ -1577,7 +1310,7 @@ $footerObj = @"
 
 #Get VM Backup Status
 $vmStatus = @()
-If ($showSummaryProtect + $showUnprotectedVMs + $showProtectedVMs) {
+If ($showSummaryProtect + $showUnprotectedVMs + $showUnprotectedVMsInfo + $showProtectedVMs) {
   $vmStatus = Get-VMsBackupStatus
 }
 # VMs Missing Backups
@@ -1610,12 +1343,16 @@ If ($showSummaryProtect) {
   }
   If (@($missingVMs).Count -ge 1) {
     $percentProt = (@($warnVMs).Count + @($successVMs).Count) / (@($warnVMs).Count + @($successVMs).Count + @($missingVMs).Count)
-    $sumprotectHead = $subHead01err
+    If ($showUnprotectedVMsInfo) {
+      $sumprotectHead = $subHead01inf
+    } Else {
+      $sumprotectHead = $subHead01err
+    }
   }  
   $vbrMasterHash = @{
     WarningVM = @($warnVMs).Count
     ProtectedVM = @($successVMs).Count
-    FailedVM = @($missingVMs).Count
+    UnprotectedVM = @($missingVMs).Count
     PercentProt = "{0:P2}{1}" -f $percentProt,$percentWarn
     
   }
@@ -1623,18 +1360,26 @@ If ($showSummaryProtect) {
   $summaryProtect =  $vbrMasterObj | Select @{Name="% Protected"; Expression = {$_.PercentProt}},
     @{Name="Fully Protected VMs"; Expression = {$_.ProtectedVM}},
     @{Name="Protected VMs w/Warnings"; Expression = {$_.WarningVM}},
-    @{Name="Unprotected VMs"; Expression = {$_.FailedVM}}
+    @{Name="Unprotected VMs"; Expression = {$_.UnprotectedVM}}
   $bodySummaryProtect = $summaryProtect | ConvertTo-HTML -Fragment
   $bodySummaryProtect = $sumprotectHead + "VM Backup Protection Summary" + $subHead02 + $bodySummaryProtect
 }
 
+
 # Get VMs Missing Backups
 $bodyMissing = $null
-If ($showUnprotectedVMs) {  
+If ($showUnprotectedVMs -Or $showUnprotectedVMsInfo) {  
   If ($missingVMs -ne $null) {
-    $missingVMs = $missingVMs | Sort vCenter, Datacenter, Cluster, Name | Select Name, vCenter, Datacenter, Cluster, Folder,
-      @{Name="Last Start Time"; Expression = {$_.StartTime}}, @{Name="Last End Time"; Expression = {$_.StopTime}}, Details | ConvertTo-HTML -Fragment
-    $bodyMissing = $subHead01err + "VMs with No Successful Backups within RPO" + $subHead02 + $missingVMs
+
+    If ($showUnprotectedVMsInfo) {
+      $missingVMs = $missingVMs | Sort vCenter, Datacenter, Cluster, Name | Select Name, vCenter, Datacenter, Cluster, Folder,
+        @{Name="Last Start Time"; Expression = {$_.StartTime}}, @{Name="Last End Time"; Expression = {$_.StopTime}}, Details | ConvertTo-HTML -Fragment
+      $bodyMissing = $subHead01inf + "Unprotected VMs within RPO" + $subHead02 + $missingVMs
+    } Else{
+      $missingVMs = $missingVMs | Sort vCenter, Datacenter, Cluster, Name | Select Name, vCenter, Datacenter, Cluster, Folder,
+        @{Name="Last Start Time"; Expression = {$_.StartTime}}, @{Name="Last End Time"; Expression = {$_.StopTime}}, Details | ConvertTo-HTML -Fragment
+      $bodyMissing = $subHead01err + "VMs with No Successful Backups within RPO" + $subHead02 + $missingVMs
+    }
   }
 }
 
@@ -4340,24 +4085,31 @@ If ($showServices) {
 # Get License Info
 $bodyLicense = $null
 If ($showLicExp) {
-  $arrLicense = Get-VeeamSupportDate $vbrServer | Select @{Name="Expiry Date"; Expression = {$_.ExpDate}},
+  $arrLicense = Get-VeeamSupportDate $vbrServer | Select @{Name = "Type"; Expression = { $_.LicType } },
+    @{Name="Expiry Date"; Expression = {$_.ExpDate}},
     @{Name="Days Remaining"; Expression = {$_.DaysRemain}}, `
     @{Name="Status"; Expression = {
-      If ($_.DaysRemain -lt $licenseCritical) {"Critical"}
+      If ($_.LicType -eq "Evaluation") {"OK"}
+      ElseIf ($_.DaysRemain -lt $licenseCritical) {"Critical"}
       ElseIf ($_.DaysRemain -lt $licenseWarn) {"Warning"}
       ElseIf ($_.DaysRemain -eq "Failed") {"Failed"}
       Else {"OK"}}
     }  
   $bodyLicense = $arrLicense | ConvertTo-HTML -Fragment
-  If ($arrLicense.Status -eq "OK") {
-    $licHead = $subHead01suc
-  } ElseIf ($arrLicense.Status -eq "Warning") {
-    $licHead = $subHead01war
-  } Else {
-    $licHead = $subHead01err
-  }
+    If ($arrLicense.Type -eq "Evaluation") {
+        $licHead = $subHead01inf
+    } Else {
+      If ($arrLicense.Status -eq "OK") {
+        $licHead = $subHead01suc
+      } ElseIf ($arrLicense.Status -eq "Warning") {
+        $licHead = $subHead01war
+      } Else {
+        $licHead = $subHead01err
+      }
+    }
   $bodyLicense = $licHead + "License/Support Renewal Date" + $subHead02 + $bodyLicense
 }
+
 
 # Combine HTML Output
 $htmlOutput = $headerObj + $bodyTop + $bodySummaryProtect + $bodySummaryBK + $bodySummaryRp + $bodySummaryBc + $bodySummaryTp + $bodySummaryEp + $bodySummarySb
