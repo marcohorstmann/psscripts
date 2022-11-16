@@ -23,10 +23,10 @@ $URL_Schedule = "https://github.com/broth-itk/psscripts/raw/master/MyVeeamReport
 
 
 # download latest version of script
-Write-Information "Downloading latest version of script..."
+Write-Host "Downloading latest version of script..."
 try {
     Invoke-WebRequest -outfile $Script -uri $URL_Script
-    Write-Information "The file [$Script] has been created."
+    Write-Host "The file [$Script] has been created."
 } catch {
     throw $_.Exception.Message
 }
@@ -34,10 +34,10 @@ try {
 
 # if the config file does not exist, create it.
 if (-not(Test-Path -Path $Config -PathType Leaf)) {
-    Write-Information "Downloading latest version of configuration file..."
+    Write-Host "Downloading latest version of configuration file..."
     try {
         Invoke-WebRequest -outfile $Config -uri $URL_Config
-        Write-Information "The file [$Config] has been created."
+        Write-Host "The file [$Config] has been created."
     } catch {
         throw $_.Exception.Message
     }
@@ -45,13 +45,13 @@ if (-not(Test-Path -Path $Config -PathType Leaf)) {
 
 
 # download schedule script
-Write-Information "Downloading latest version of schedule script..."
+Write-Host "Downloading latest version of schedule script..."
 try {
     Invoke-WebRequest -outfile $Schedule -uri $URL_Schedule
-    Write-Information "Executing script..."
+    Write-Host "Executing script..."
     Invoke-Expression -Command $Schedule
     Remove-Item $Schedule
-    Write-Information "Scheduler set"
+    Write-Host "Scheduler set"
 } catch {
     throw $_.Exception.Message
 }
