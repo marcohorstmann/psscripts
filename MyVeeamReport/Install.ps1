@@ -21,6 +21,7 @@ $URL_Script = "https://github.com/broth-itk/psscripts/raw/master/MyVeeamReport/M
 $URL_Config = "https://github.com/broth-itk/psscripts/raw/master/MyVeeamReport/MyVeeamReport_config.ps1"
 $URL_Schedule = "https://github.com/broth-itk/psscripts/raw/master/MyVeeamReport/Schedule.ps1"
 
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # download latest version of script
 Write-Host "Downloading latest version of script..."
