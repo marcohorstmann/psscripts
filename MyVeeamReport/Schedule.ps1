@@ -8,8 +8,8 @@
     Author: Bernhard Roth
     Last Updated: 15 November 2022
     Version: 1.0
-  
-#> 
+
+#>
 
 # Customize to your requirements...
 $Script = "C:\Temp\MyVeeamReport.ps1"
@@ -20,7 +20,7 @@ $User = "NT AUTHORITY\SYSTEM"
 # Task trigger: Weekly
 $Trigger = New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Wednesday -At 11pm
 # Daily
-# $Trigger = New-ScheduledTaskTrigger –Daily -At 11:30am 
+# $Trigger = New-ScheduledTaskTrigger -Daily -At 11:30am
 
 # Task action: Run Script as argument to PowerShell.exe in specified working directory
 $Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument $Script -WorkingDirectory $WorkDir

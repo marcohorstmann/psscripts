@@ -26,6 +26,8 @@ $rptTitle = "My Veeam Report"
 $showVBR = $true
 # HTML Report Width (Percent)
 $rptWidth = 97
+# HTML Table Odd Row color
+$oddColor = "#f0f0f0"
 
 # Location of Veeam Core dll  
 $VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Backup\Veeam.Backup.Core.dll"
