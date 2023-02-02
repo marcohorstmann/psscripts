@@ -62,7 +62,7 @@ Import-Module ..\include\mho-veeam\mho-veeam.psm1 -ErrorAction stop
 # If function can be reused think about to add it to the imported modules
 # to make this functions reusable across multiple scripts.
 #
-function Get-MHOVbrJobDetails($job) {
+function Get-MHOVbrJobDetails ($job) {
     
     
     return $jobDetails
