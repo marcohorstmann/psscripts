@@ -16,363 +16,58 @@
 
     .EXAMPLE
     .\MyVeeamReport.ps1
-    Run script from (an elevated) PowerShell console  
-  
+    Run script from (an elevated) PowerShell console
+
     .NOTES
+    New Authors: Bernhard Roth
+    Last Updated: 15 November 2022
+    Version: 11.0.1.5
     New Authors: Marco Horstmann & Herbert Szumovski
     Last Updated: 23 March 2022
     Version: 11.0.1.4
     Original Author: Shawn Masterson
     Last Updated: December 2017
     Version: 9.5.3
-  
+
     Requires:
     Veeam Backup & Replication v11.0 or later (full or console install)
     VMware Infrastructure
-	
-	+---------------------------------------------------------------------------------------+
-	|   H. Szumovski: This is an update of Shawns last Version above: 9.5.3                 |
-	|	WARNING:  Only the reports which are set to "$true" in the user variables           |
-	|			region, will work, because I have not the time nor the equipment to	        |
-	|			test the others (especially everything related to replication functions).	|
-	|			If reports are disabled below (by being set to $false in the User-Variables |
-	|			region), then I did not touch and upgrade them and they may not work. 		|
-	|           Feel free to disable further reports if you do not need them.               |    
-	+---------------------------------------------------------------------------------------+
 
-#> 
+    +---------------------------------------------------------------------------------------+
+    |   H. Szumovski: This is an update of Shawns last Version above: 9.5.3                 |
+    |   WARNING:  Only the reports which are set to "$true" in the user variables           |
+    |   region, will work, because I have not the time nor the equipment to                 |
+    |   test the others (especially everything related to replication functions).           |
+    |   If reports are disabled below (by being set to $false in the User-Variables         |
+    |   region), then I did not touch and upgrade them and they may not work.               |
+    |   Feel free to disable further reports if you do not need them.                       |
+    +---------------------------------------------------------------------------------------+
+
+#>
 
 #region User-Variables
-# VBR Server (Server Name, FQDN or IP)
-$vbrServer = "localhost"
-# Report mode (RPO) - valid modes: any number of hours, Weekly or Monthly
-# 24, 48, "Weekly", "Monthly"
-$reportMode = 24
-# Report Title
-$rptTitle = "My Veeam Report"
-# Show VBR Server name in report header
-$showVBR = $true
-# HTML Report Width (Percent)
-$rptWidth = 97
-
-# Location of Veeam Core dll  
-$VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Backup\Veeam.Backup.Core.dll"
-# Save HTML output to a file
-$saveHTML = $true
-# HTML File output path and filename
-$pathHTML = ".\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss).htm"
-# Launch HTML file after creation
-$launchHTML = $true
-
-# Email configuration
-$sendEmail = $false
-$emailHost = "smtp.yourserver.com"
-$emailPort = 25
-$emailEnableSSL = $false
-$emailUser = ""
-$emailPass = ""
-$emailFrom = "MyVeeamReport@yourdomain.com"
-$emailTo = "you@youremail.com"
-# Send HTML report as attachment (else HTML report is body)
-$emailAttach = $false
-# Email Subject 
-$emailSubject = $rptTitle
-# Append Report Mode to Email Subject E.g. My Veeam Report (Last 24 Hours)
-$modeSubject = $true
-# Append VBR Server name to Email Subject
-$vbrSubject = $true
-# Append Date and Time to Email Subject
-$dtSubject = $false
-
-#--------------------- Disable reports you do not need by setting them to "$false" below:																						 
-# Show VM Backup Protection Summary (across entire infrastructure)
-$showSummaryProtect = $true
-# Show VMs with No Successful Backups within RPO ($reportMode)
-$showUnprotectedVMs = $true
-# Show VMs with Successful Backups within RPO ($reportMode)
-# Also shows VMs with Only Backups with Warnings within RPO ($reportMode)
-$showProtectedVMs = $true
-# Exclude VMs from Missing and Successful Backups sections
-# $excludevms = @("vm1","vm2","*_replica")
-$excludeVMs = @("")
-# Exclude VMs from Missing and Successful Backups sections in the following (vCenter) folder(s)
-# $excludeFolder = @("folder1","folder2","*_testonly")
-$excludeFolder = @("")
-# Exclude VMs from Missing and Successful Backups sections in the following (vCenter) datacenter(s)
-# $excludeDC = @("dc1","dc2","dc*")
-$excludeDC = @("")
-# Exclude Templates from Missing and Successful Backups sections
-$excludeTemp = $false
-
-# Show VMs Backed Up by Multiple Jobs within time frame ($reportMode)
-$showMultiJobs = $true
-
-# Show Backup Session Summary
-$showSummaryBk = $true
-# Show Backup Job Status
-$showJobsBk = $true
-# Show Backup Job Size (total)
-$showBackupSizeBk = $true
-# Show detailed information for Backup Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedBk = $true
-# Show all Backup Sessions within time frame ($reportMode)
-$showAllSessBk = $true
-# Show all Backup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksBk = $true
-# Show Running Backup Jobs
-$showRunningBk = $true
-# Show Running Backup Tasks
-$showRunningTasksBk = $true
-# Show Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailBk = $true
-# Show Backup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFBk = $true
-# Show Successful Backup Sessions within time frame ($reportMode)
-$showSuccessBk = $true
-# Show Successful Backup Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessBk = $true
-# Only show last Session for each Backup Job
-$onlyLastBk = $false
-# Only report on the following Backup Job(s)
-#$backupJob = @("Backup Job 1","Backup Job 3","Backup Job *")
-$backupJob = @("")
-
-# Show Running Restore VM Sessions
-$showRestoRunVM = $true
-# Show Completed Restore VM Sessions within time frame ($reportMode)
-$showRestoreVM = $true
-
-# Show Replication Session Summary
-$showSummaryRp = $false
-# Show Replication Job Status
-$showJobsRp = $false
-# Show detailed information for Replication Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedRp = $true
-# Show all Replication Sessions within time frame ($reportMode)
-$showAllSessRp = $false
-# Show all Replication Tasks from Sessions within time frame ($reportMode)
-$showAllTasksRp = $false
-# Show Running Replication Jobs
-$showRunningRp = $false
-# Show Running Replication Tasks
-$showRunningTasksRp = $false
-# Show Replication Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailRp = $false
-# Show Replication Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFRp = $false
-# Show Successful Replication Sessions within time frame ($reportMode)
-$showSuccessRp = $false
-# Show Successful Replication Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessRp = $false
-# Only show last session for each Replication Job
-$onlyLastRp = $false
-# Only report on the following Replication Job(s)
-#$replicaJob = @("Replica Job 1","Replica Job 3","Replica Job *")
-$replicaJob = @("")
-
-# Show Backup Copy Session Summary
-$showSummaryBc = $true
-# Show Backup Copy Job Status
-$showJobsBc = $true
-# Show Backup Copy Job Size (total)
-$showBackupSizeBc = $true
-# Show detailed information for Backup Copy Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedBc = $true
-# Show all Backup Copy Sessions within time frame ($reportMode)
-$showAllSessBc = $true
-# Show all Backup Copy Tasks from Sessions within time frame ($reportMode)
-$showAllTasksBc = $true
-# Show Idle Backup Copy Sessions
-$showIdleBc = $true
-# Show Pending Backup Copy Tasks
-$showPendingTasksBc = $true
-# Show Working Backup Copy Jobs
-$showRunningBc = $true
-# Show Working Backup Copy Tasks
-$showRunningTasksBc = $true
-# Show Backup Copy Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailBc = $true
-# Show Backup Copy Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFBc = $true
-# Show Successful Backup Copy Sessions within time frame ($reportMode)
-$showSuccessBc = $true
-# Show Successful Backup Copy Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessBc = $true
-# Only show last Session for each Backup Copy Job
-$onlyLastBc = $false
-# Only report on the following Backup Copy Job(s)
-#$bcopyJob = @("Backup Copy Job 1","Backup Copy Job 3","Backup Copy Job *")
-$bcopyJob = @("")
-
-# Show Tape Backup Session Summary
-$showSummaryTp = $true
-# Show Tape Backup Job Status
-$showJobsTp = $true
-# Show detailed information for Tape Backup Sessions (Avg Speed, Total(GB), Read(GB), Transferred(GB))
-$showDetailedTp = $true
-# Show all Tape Backup Sessions within time frame ($reportMode)
-$showAllSessTp = $true
-# Show all Tape Backup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksTp = $true
-# Show Waiting Tape Backup Sessions
-$showWaitingTp = $true
-# Show Idle Tape Backup Sessions
-$showIdleTp = $true
-# Show Pending Tape Backup Tasks
-$showPendingTasksTp = $true
-# Show Working Tape Backup Jobs
-$showRunningTp = $true
-# Show Working Tape Backup Tasks
-$showRunningTasksTp = $true
-# Show Tape Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailTp = $true
-# Show Tape Backup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFTp = $true
-# Show Successful Tape Backup Sessions within time frame ($reportMode)
-$showSuccessTp = $true
-# Show Successful Tape Backup Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessTp = $true
-# Only show last Session for each Tape Backup Job
-$onlyLastTp = $false
-# Only report on the following Tape Backup Job(s)
-#$tapeJob = @("Tape Backup Job 1","Tape Backup Job 3","Tape Backup Job *")
-$tapeJob = @("")
-
-# Show all Tapes
-$showTapes = $true
-# Show all Tapes by (Custom) Media Pool
-$showTpMp = $true
-# Show all Tapes by Vault
-$showTpVlt = $true
-# Show all Expired Tapes
-$showExpTp = $true
-# Show Expired Tapes by (Custom) Media Pool
-$showExpTpMp = $true
-# Show Expired Tapes by Vault
-$showExpTpVlt = $true
-# Show Tapes written to within time frame ($reportMode)
-$showTpWrt = $true
-
-# Show Agent Backup Session Summary
-$showSummaryEp = $true
-# Show Agent Backup Job Status
-$showJobsEp = $true
-# Show Agent Backup Job Size (total)
-$showBackupSizeEp = $true
-# Show all Agent Backup Sessions within time frame ($reportMode)
-$showAllSessEp = $true
-# Show Running Agent Backup jobs
-$showRunningEp = $true
-# Show Agent Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailEp = $true
-# Show Successful Agent Backup Sessions within time frame ($reportMode)
-$showSuccessEp = $true
-# Only show last session for each Agent Backup Job
-$onlyLastEp = $false
-# Only report on the following Agent Backup Job(s)
-#$epbJob = @("Agent Backup Job 1","Agent Backup Job 3","Agent Backup Job *")
-$epbJob = @("")
-
-# Show Configuration Backup Summary
-$showSummaryConfig = $true
-# Show Proxy Info
-$showProxy = $true
-# Show Repository Info
-$showRepo = $true
-# Show Repository Permissions for Agent Jobs
-$showRepoPerms = $true
-# Show Replica Target Info
-$showReplicaTarget = $true
-# Show Veeam Services Info (Windows Services)
-$showServices = $true
-# Show only Services that are NOT running
-$hideRunningSvc = $true
-# Show License expiry info
-$showLicExp = $true
-<# Start of unchanged reports since version 9.5.3
-# Show SureBackup Session Summary
-$showSummarySb = $false
-# Show SureBackup Job Status
-$showJobsSb = $false
-# Show all SureBackup Sessions within time frame ($reportMode)
-$showAllSessSb = $false
-# Show all SureBackup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksSb = $false
-# Show Running SureBackup Jobs
-$showRunningSb = $false
-# Show Running SureBackup Tasks
-$showRunningTasksSb = $false
-# Show SureBackup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailSb = $false
-# Show SureBackup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFSb = $false
-# Show Successful SureBackup Sessions within time frame ($reportMode)
-$showSuccessSb = $false
-# Show Successful SureBackup Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessSb = $false
-# Only show last Session for each SureBackup Job
-$onlyLastSb = $false
-# Only report on the following SureBackup Job(s)
-#$surebJob = @("SureBackup Job 1","SureBackup Job 3","SureBackup Job *")
-$surebJob = @("")
-
-# Show Replication Session Summary
-$showSummaryRp = $false
-# Show Replication Job Status
-$showJobsRp = $false
-# Show detailed information for Replication Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedRp = $false
-# Show all Replication Sessions within time frame ($reportMode)
-$showAllSessRp = $false
-# Show all Replication Tasks from Sessions within time frame ($reportMode)
-$showAllTasksRp = $false
-# Show Running Replication Jobs
-$showRunningRp = $false
-# Show Running Replication Tasks
-$showRunningTasksRp = $false
-# Show Replication Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailRp = $false
-# Show Replication Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFRp = $false
-# Show Successful Replication Sessions within time frame ($reportMode)
-$showSuccessRp = $false
-# Show Successful Replication Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessRp = $false
-# Only show last session for each Replication Job
-$onlyLastRp = $false
-# Only report on the following Replication Job(s)
-#$replicaJob = @("Replica Job 1","Replica Job 3","Replica Job *")
-$replicaJob = @("")
-
-# Show Running Restore VM Sessions
-$showRestoRunVM = $false
-# Show Completed Restore VM Sessions within time frame ($reportMode)
-$showRestoreVM = $false
-
-end of excluded unchanged reports since version 9.5.3 #>
-
-
-# Highlighting Thresholds
-# Repository Free Space Remaining %
-$repoCritical = 10
-$repoWarn = 20
-# Replica Target Free Space Remaining %
-$replicaCritical = 10
-$replicaWarn = 20
-# License Days Remaining
-$licenseCritical = 30
-$licenseWarn = 90
+. .\MyVeeamReport_config.ps1
 #endregion
- 
+
 #region VersionInfo
-$MVRversion = "11.0.1.4"
+$MVRversion = "11.0.1.5"
+
+# Version 11.0.1.5 BR - 2022-11-15
+# Update license retrieval code, support different license variants
+# Put configuration in external file
+# Add informational section header
+# Add option to show unprotected VMs for informational purposes only
+# Use computername instead of "localhost"
+# Fix VBR version in report header
+# Suppress error on Get-VBRTapeVault if not licensed
+# Fix HTML validation errors
+# Use PSScriptChecker to implement PS syntax and verb recommendations
 
 # Version 11.0.1.4 MH - 2022-03-23
 # Merged Herberts and my version
 
-
 # Version 11.0.1.3 HS - 2022-03-20
-# fixed backup copy reports  
+# fixed backup copy reports
 
 # Version 11.0.1.2 HS - 2022-03-14
 # fixed Agent job status
@@ -547,7 +242,7 @@ $MVRversion = "11.0.1.4"
 # Version 1.3 - SM
 # Now supports VBR v8
 # For VBR v7, use report version 1.2
-# Added more flexible options to save and launch file 
+# Added more flexible options to save and launch file
 #
 # Version 1.2 - SM
 # Added option to show VMs Successfully backed up
@@ -587,18 +282,18 @@ $MVRversion = "11.0.1.4"
 #   Modified - Failed = Failures
 #   Added - Failed (last session)
 #   Added - Running (currently running sessions)
-# 
+#
 # Modified job lines
 #   Renamed Header - Sessions with Warnings or Failures
 #   Fixed Write (GB) - Broke with v7
-#   
+#
 # Added support license renewal
 #   Credit - Gavin Townsend  http://www.theagreeablecow.com/2012/09/sysadmin-modular-reporting-samreports.html
 #   Original  Credit - Arne Fokkema  http://ict-freak.nl/2011/12/29/powershell-veeam-br-get-total-days-before-the-license-expires/
 #
 # Modified Proxy section
 #   Removed Read/Write/Util - Broke in v7 - Workaround unknown
-# 
+#
 # Modified Services section
 #   Added - $runningSvc variable to toggle displaying services that are running
 #   Added - Ability to hide section if no results returned (all services are running)
@@ -607,7 +302,7 @@ $MVRversion = "11.0.1.4"
 # Added VMs Not Backed Up section
 #   Credit - Tom Sightler - http://sightunseen.org/blog/?p=1
 #   http://www.sightunseen.org/files/vm_backup_status_dev.ps1
-#   
+#
 # Modified $reportMode
 #   Added ability to run with any number of hours (8,12,72 etc)
 #   Added bits to allow for zero sessions (semi-gracefully)
@@ -637,14 +332,14 @@ $MVRversion = "11.0.1.4"
 #
 # Version 0.7
 # Added Utilisation(Get-vPCDailyProxyUsage) and Modes 24, 48, Weekly, and Monthly
-# Minor performance tweaks 
+# Minor performance tweaks
 #endregion
 
 #region Connect
 
 
 # Connect to VBR server
-Write-Host "Connecting ..."				   
+Write-Host "Connecting ..."
 $OpenConnection = (Get-VBRServerSession).Server
 If ($OpenConnection -ne $vbrServer){
   Disconnect-VBRServer
@@ -670,11 +365,12 @@ If ($showSummaryBk + $showJobsBk + $showAllSessBk + $showAllTasksBk + $showRunni
   $allJobs = Get-VBRJob -WarningAction SilentlyContinue
 }
 # Get all Backup Jobs
-$allJobsBk = @($allJobs | ?{$_.JobType -eq "Backup"})
+$allJobsBk = @($allJobs | Where-Object {$_.JobType -eq "Backup"})
 # Get all Replication Jobs
-$allJobsRp = @($allJobs | ?{$_.JobType -eq "Replica"})
+$allJobsRp = @($allJobs | Where-Object {$_.JobType -eq "Replica"})
 # Get all Backup Copy Jobs
-$allJobsBc = @($allJobs | ?{$_.JobType -eq "BackupSync" -or $_.JobType -eq "SimpleBackupCopyPolicy"})# Get all Tape Jobs
+$allJobsBc = @($allJobs | Where-Object {$_.JobType -eq "BackupSync" -or $_.JobType -eq "SimpleBackupCopyPolicy"})
+# Get all Tape Jobs
 $allJobsTp = @()
 If ($showSummaryTp + $showJobsTp + $showAllSessTp + $showAllTasksTp +
   $showWaitingTp + $showIdleTp + $showPendingTasksTp + $showRunningTp + $showRunningTasksTp +
@@ -689,8 +385,8 @@ If ($showSummaryEp + $showJobsEp + $showAllSessEp + $showRunningEp +
 }
 # Get all SureBackup Jobs
 $allJobsSb = @()
-If ($showSummarySb + $showJobsSb + $showAllSessSb + $showAllTasksSb + 
-  $showRunningSb + $showRunningTasksSb + $showWarnFailSb + $showTaskWFSb + 
+If ($showSummarySb + $showJobsSb + $showAllSessSb + $showAllTasksSb +
+  $showRunningSb + $showRunningTasksSb + $showWarnFailSb + $showTaskWFSb +
   $showSuccessSb + $showTaskSuccessSb) {
   $allJobsSb = @(Get-VSBJob)
 }
@@ -730,16 +426,20 @@ If ($showBackupSizeBk + $showBackupSizeBc + $showBackupSizeEp) {
   $jobBackups = Get-VBRBackup
 }
 # Get Backup Job Backups
-$backupsBk = @($jobBackups | ?{$_.JobType -eq "Backup"})
+$backupsBk = @($jobBackups | Where-Object {$_.JobType -eq "Backup"})
 # Get Backup Copy Job Backups
-$backupsBc = @($jobBackups | ?{$_.JobType -eq "BackupSync"})
+$backupsBc = @($jobBackups | Where-Object {$_.JobType -eq "BackupSync"})
 # Get Agent Backup Job Backups
-$backupsEp = @($jobBackups | ?{$_.JobType -eq "EndpointBackup"})
+$backupsEp = @($jobBackups | Where-Object {$_.JobType -eq "EndpointBackup"})
 
 # Get all Media Pools
 $mediaPools = Get-VBRTapeMediaPool
 # Get all Media Vaults
-$mediaVaults = Get-VBRTapeVault
+Try {
+    $mediaVaults = Get-VBRTapeVault
+} Catch {
+    Write-Host "Tape possibly not licensed."
+}
 # Get all Tapes
 $mediaTapes = Get-VBRTapeMedium
 # Get all Tape Libraries
@@ -769,193 +469,193 @@ If ($reportMode -eq "Monthly") {
 }
 
 # Gather all Backup Sessions within timeframe
-$sessListBk = @($allSess | ?{($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -eq "Working") -and $_.JobType -eq "Backup"})
-If ($backupJob -ne $null -and $backupJob -ne "") {
+$sessListBk = @($allSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -eq "Working") -and $_.JobType -eq "Backup"})
+If ($null -ne $backupJob -and $backupJob -ne "") {
   $allJobsBkTmp = @()
   $sessListBkTmp = @()
   $backupsBkTmp = @()
   Foreach ($bkJob in $backupJob) {
-    $allJobsBkTmp += $allJobsBk | ?{$_.Name -like $bkJob}
-    $sessListBkTmp += $sessListBk | ?{$_.JobName -like $bkJob}
-    $backupsBkTmp += $backupsBk | ?{$_.JobName -like $bkJob}
+    $allJobsBkTmp += $allJobsBk | Where-Object {$_.Name -like $bkJob}
+    $sessListBkTmp += $sessListBk | Where-Object {$_.JobName -like $bkJob}
+    $backupsBkTmp += $backupsBk | Where-Object {$_.JobName -like $bkJob}
   }
-  $allJobsBk = $allJobsBkTmp | sort Id -Unique
-  $sessListBk = $sessListBkTmp | sort Id -Unique
-  $backupsBk = $backupsBkTmp | sort Id -Unique
+  $allJobsBk = $allJobsBkTmp | Sort-Object Id -Unique
+  $sessListBk = $sessListBkTmp | Sort-Object Id -Unique
+  $backupsBk = $backupsBkTmp | Sort-Object Id -Unique
 }
 If ($onlyLastBk) {
   $tempSessListBk = $sessListBk
   $sessListBk = @()
   Foreach($job in $allJobsBk) {
-    $sessListBk += $tempSessListBk | ?{$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
+    $sessListBk += $tempSessListBk | Where-Object {$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
   }
 }
 # Get Backup Session information
 $totalXferBk = 0
 $totalReadBk = 0
 
-$sessListBk | %{$totalXferBk += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
-$sessListBk | %{$totalReadBk += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
-$successSessionsBk = @($sessListBk | ?{$_.Result -eq "Success"})
-$warningSessionsBk = @($sessListBk | ?{$_.Result -eq "Warning"})
-$failsSessionsBk = @($sessListBk | ?{$_.Result -eq "Failed"})
-$runningSessionsBk = @($sessListBk | ?{$_.State -eq "Working"})
-$failedSessionsBk = @($sessListBk | ?{($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
+$sessListBk | ForEach-Object {$totalXferBk += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
+$sessListBk | ForEach-Object {$totalReadBk += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
+$successSessionsBk = @($sessListBk | Where-Object {$_.Result -eq "Success"})
+$warningSessionsBk = @($sessListBk | Where-Object {$_.Result -eq "Warning"})
+$failsSessionsBk = @($sessListBk | Where-Object {$_.Result -eq "Failed"})
+$runningSessionsBk = @($sessListBk | Where-Object {$_.State -eq "Working"})
+$failedSessionsBk = @($sessListBk | Where-Object {($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
 
 # Gather VM Restore Sessions within timeframe
-$sessListResto = @($allSessResto | ?{$_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or !($_.IsCompleted)})
+$sessListResto = @($allSessResto | Where-Object {$_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or !($_.IsCompleted)})
 # Get VM Restore Session information
-$completeResto = @($sessListResto | ?{$_.IsCompleted})
-$runningResto = @($sessListResto | ?{!($_.IsCompleted)})
+$completeResto = @($sessListResto | Where-Object {$_.IsCompleted})
+$runningResto = @($sessListResto | Where-Object {!($_.IsCompleted)})
 
 # Gather all Replication Sessions within timeframe
-$sessListRp = @($allSess | ?{($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -eq "Working") -and $_.JobType -eq "Replica"})
-If ($replicaJob -ne $null -and $replicaJob -ne "") {
+$sessListRp = @($allSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -eq "Working") -and $_.JobType -eq "Replica"})
+If ($null -ne $replicaJob -and $replicaJob -ne "") {
   $allJobsRpTmp = @()
   $sessListRpTmp = @()
   Foreach ($rpJob in $replicaJob) {
-    $allJobsRpTmp += $allJobsRp | ?{$_.Name -like $rpJob}
-    $sessListRpTmp += $sessListRp | ?{$_.JobName -like $rpJob}
+    $allJobsRpTmp += $allJobsRp | Where-Object {$_.Name -like $rpJob}
+    $sessListRpTmp += $sessListRp | Where-Object {$_.JobName -like $rpJob}
   }
-  $allJobsRp = $allJobsRpTmp | sort Id -Unique
-  $sessListRp = $sessListRpTmp | sort Id -Unique
+  $allJobsRp = $allJobsRpTmp | Sort-Object Id -Unique
+  $sessListRp = $sessListRpTmp | Sort-Object Id -Unique
 }
 If ($onlyLastRp) {
   $tempSessListRp = $sessListRp
   $sessListRp = @()
   Foreach($job in $allJobsRp) {
-    $sessListRp += $tempSessListRp | ?{$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
+    $sessListRp += $tempSessListRp | Where-Object {$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
   }
 }
 # Get Replication Session information
 $totalXferRp = 0
 $totalReadRp = 0
-$sessListRp | %{$totalXferRp += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
-$sessListRp | %{$totalReadRp += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
-$successSessionsRp = @($sessListRp | ?{$_.Result -eq "Success"})
-$warningSessionsRp = @($sessListRp | ?{$_.Result -eq "Warning"})
-$failsSessionsRp = @($sessListRp | ?{$_.Result -eq "Failed"})
-$runningSessionsRp = @($sessListRp | ?{$_.State -eq "Working"})
-$failedSessionsRp = @($sessListRp | ?{($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
+$sessListRp | ForEach-Object {$totalXferRp += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
+$sessListRp | ForEach-Object {$totalReadRp += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
+$successSessionsRp = @($sessListRp | Where-Object {$_.Result -eq "Success"})
+$warningSessionsRp = @($sessListRp | Where-Object {$_.Result -eq "Warning"})
+$failsSessionsRp = @($sessListRp | Where-Object {$_.Result -eq "Failed"})
+$runningSessionsRp = @($sessListRp | Where-Object {$_.State -eq "Working"})
+$failedSessionsRp = @($sessListRp | Where-Object {($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
 
 # Gather all Backup Copy Sessions within timeframe
-$sessListBc = @($allSess | ?{($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Idle") -and $_.JobType -eq "BackupSync"})
-If ($bcopyJob -ne $null -and $bcopyJob -ne "") {
+$sessListBc = @($allSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Idle") -and $_.JobType -eq "BackupSync"})
+If ($null -ne $bcopyJob -and $bcopyJob -ne "") {
   $allJobsBcTmp = @()
   $sessListBcTmp = @()
   $backupsBcTmp = @()
   Foreach ($bcJob in $bcopyJob) {
-    $allJobsBcTmp += $allJobsBc | ?{$_.Name -like $bcJob}
-    $sessListBcTmp += $sessListBc | ?{$_.JobName -like $bcJob}
-    $backupsBcTmp += $backupsBc | ?{$_.JobName -like $bcJob}
+    $allJobsBcTmp += $allJobsBc | Where-Object {$_.Name -like $bcJob}
+    $sessListBcTmp += $sessListBc | Where-Object {$_.JobName -like $bcJob}
+    $backupsBcTmp += $backupsBc | Where-Object {$_.JobName -like $bcJob}
   }
-  $allJobsBc = $allJobsBcTmp | sort Id -Unique
-  $sessListBc = $sessListBcTmp | sort Id -Unique
-  $backupsBc = $backupsBcTmp | sort Id -Unique
+  $allJobsBc = $allJobsBcTmp | Sort-Object Id -Unique
+  $sessListBc = $sessListBcTmp | Sort-Object Id -Unique
+  $backupsBc = $backupsBcTmp | Sort-Object Id -Unique
 }
 If ($onlyLastBc) {
   $tempSessListBc = $sessListBc
   $sessListBc = @()
   Foreach($job in $allJobsBc) {
-    $sessListBc += $tempSessListBc | ?{$_.Jobname -eq $job.name -and $_.BaseProgress -eq 100} | Sort-Object EndTime -Descending | Select-Object -First 1
+    $sessListBc += $tempSessListBc | Where-Object {$_.Jobname -eq $job.name -and $_.BaseProgress -eq 100} | Sort-Object EndTime -Descending | Select-Object -First 1
   }
 }
 # Get Backup Copy Session information
 $totalXferBc = 0
 $totalReadBc = 0
-$sessListBc | %{$totalXferBc += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
-$sessListBc | %{$totalReadBc += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
-$idleSessionsBc = @($sessListBc | ?{$_.State -eq "Idle"})
-$successSessionsBc = @($sessListBc | ?{$_.Result -eq "Success"})
-$warningSessionsBc = @($sessListBc | ?{$_.Result -eq "Warning"})
-$failsSessionsBc = @($sessListBc | ?{$_.Result -eq "Failed"})
-$workingSessionsBc = @($sessListBc | ?{$_.State -eq "Working"})
+$sessListBc | ForEach-Object {$totalXferBc += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
+$sessListBc | ForEach-Object {$totalReadBc += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
+$idleSessionsBc = @($sessListBc | Where-Object {$_.State -eq "Idle"})
+$successSessionsBc = @($sessListBc | Where-Object {$_.Result -eq "Success"})
+$warningSessionsBc = @($sessListBc | Where-Object {$_.Result -eq "Warning"})
+$failsSessionsBc = @($sessListBc | Where-Object {$_.Result -eq "Failed"})
+$workingSessionsBc = @($sessListBc | Where-Object {$_.State -eq "Working"})
 
 # Gather all Tape Backup Sessions within timeframe
-$sessListTp = @($allSessTp | ?{$_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Idle"})
-If ($tapeJob -ne $null -and $tapeJob -ne "") {
+$sessListTp = @($allSessTp | Where-Object {$_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Idle"})
+If ($null -ne $tapeJob -and $tapeJob -ne "") {
   $allJobsTpTmp = @()
   $sessListTpTmp = @()
   Foreach ($tpJob in $tapeJob) {
-    $allJobsTpTmp += $allJobsTp | ?{$_.Name -like $tpJob}
-    $sessListTpTmp += $sessListTp | ?{$_.JobName -like $tpJob}
+    $allJobsTpTmp += $allJobsTp | Where-Object {$_.Name -like $tpJob}
+    $sessListTpTmp += $sessListTp | Where-Object {$_.JobName -like $tpJob}
   }
-  $allJobsTp = $allJobsTpTmp | sort Id -Unique
-  $sessListTp = $sessListTpTmp | sort Id -Unique
+  $allJobsTp = $allJobsTpTmp | Sort-Object Id -Unique
+  $sessListTp = $sessListTpTmp | Sort-Object Id -Unique
 }
 If ($onlyLastTp) {
   $tempSessListTp = $sessListTp
   $sessListTp = @()
   Foreach($job in $allJobsTp) {
-    $sessListTp += $tempSessListTp | ?{$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
+    $sessListTp += $tempSessListTp | Where-Object {$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
   }
 }
 # Get Tape Backup Session information
 $totalXferTp = 0
 $totalReadTp = 0
-$sessListTp | %{$totalXferTp += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
-$sessListTp | %{$totalReadTp += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
-$idleSessionsTp = @($sessListTp | ?{$_.State -eq "Idle"})
-$successSessionsTp = @($sessListTp | ?{$_.Result -eq "Success"})
-$warningSessionsTp = @($sessListTp | ?{$_.Result -eq "Warning"})
-$failsSessionsTp = @($sessListTp | ?{$_.Result -eq "Failed"})
-$workingSessionsTp = @($sessListTp | ?{$_.State -eq "Working"})
-$waitingSessionsTp = @($sessListTp | ?{$_.State -eq "WaitingTape"})
+$sessListTp | ForEach-Object {$totalXferTp += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
+$sessListTp | ForEach-Object {$totalReadTp += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
+$idleSessionsTp = @($sessListTp | Where-Object {$_.State -eq "Idle"})
+$successSessionsTp = @($sessListTp | Where-Object {$_.Result -eq "Success"})
+$warningSessionsTp = @($sessListTp | Where-Object {$_.Result -eq "Warning"})
+$failsSessionsTp = @($sessListTp | Where-Object {$_.Result -eq "Failed"})
+$workingSessionsTp = @($sessListTp | Where-Object {$_.State -eq "Working"})
+$waitingSessionsTp = @($sessListTp | Where-Object {$_.State -eq "WaitingTape"})
 
 # Gather all Agent Backup Sessions within timeframe
-$sessListEp = $allSessEp | ?{($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -eq "Working")}
-If ($epbJob -ne $null -and $epbJob -ne "") {
+$sessListEp = $allSessEp | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -eq "Working")}
+If ($null -ne $epbJob -and $epbJob -ne "") {
   $allJobsEpTmp = @()
   $sessListEpTmp = @()
   $backupsEpTmp = @()
   Foreach ($eJob in $epbJob) {
-    $allJobsEpTmp += $allJobsEp | ?{$_.Name -like $eJob}
-    $backupsEpTmp += $backupsEp | ?{$_.JobName -like $eJob}
+    $allJobsEpTmp += $allJobsEp | Where-Object {$_.Name -like $eJob}
+    $backupsEpTmp += $backupsEp | Where-Object {$_.JobName -like $eJob}
   }
   Foreach ($job in $allJobsEpTmp) {
-    $sessListEpTmp += $sessListEp | ?{$_.JobId -eq $job.Id}
+    $sessListEpTmp += $sessListEp | Where-Object {$_.JobId -eq $job.Id}
   }
-  $allJobsEp = $allJobsEpTmp | sort Id -Unique
-  $sessListEp = $sessListEpTmp | sort Id -Unique
-  $backupsEp = $backupsEpTmp | sort Id -Unique
+  $allJobsEp = $allJobsEpTmp | Sort-Object Id -Unique
+  $sessListEp = $sessListEpTmp | Sort-Object Id -Unique
+  $backupsEp = $backupsEpTmp | Sort-Object Id -Unique
 }
 If ($onlyLastEp) {
   $tempSessListEp = $sessListEp
   $sessListEp = @()
   Foreach($job in $allJobsEp) {
-    $sessListEp += $tempSessListEp | ?{$_.JobId -eq $job.Id} | Sort-Object EndTime -Descending | Select-Object -First 1
+    $sessListEp += $tempSessListEp | Where-Object {$_.JobId -eq $job.Id} | Sort-Object EndTime -Descending | Select-Object -First 1
   }
 }
 # Get Agent Backup Session information
-$successSessionsEp = @($sessListEp | ?{$_.Result -eq "Success"})
-$warningSessionsEp = @($sessListEp | ?{$_.Result -eq "Warning"})
-$failsSessionsEp = @($sessListEp | ?{$_.Result -eq "Failed"})
-$runningSessionsEp = @($sessListEp | ?{$_.State -eq "Working"})
+$successSessionsEp = @($sessListEp | Where-Object {$_.Result -eq "Success"})
+$warningSessionsEp = @($sessListEp | Where-Object {$_.Result -eq "Warning"})
+$failsSessionsEp = @($sessListEp | Where-Object {$_.Result -eq "Failed"})
+$runningSessionsEp = @($sessListEp | Where-Object {$_.State -eq "Working"})
 
 # Gather all SureBackup Sessions within timeframe
-$sessListSb = @($allSessSb | ?{$_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -ne "Stopped"})
-If ($surebJob -ne $null -and $surebJob -ne "") {
+$sessListSb = @($allSessSb | Where-Object {$_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -ne "Stopped"})
+If ($null -ne $surebJob -and $surebJob -ne "") {
   $allJobsSbTmp = @()
   $sessListSbTmp = @()
   Foreach ($SbJob in $surebJob) {
-    $allJobsSbTmp += $allJobsSb | ?{$_.Name -like $SbJob}
-    $sessListSbTmp += $sessListSb | ?{$_.JobName -like $SbJob}
+    $allJobsSbTmp += $allJobsSb | Where-Object {$_.Name -like $SbJob}
+    $sessListSbTmp += $sessListSb | Where-Object {$_.JobName -like $SbJob}
   }
-  $allJobsSb = $allJobsSbTmp | sort Id -Unique
-  $sessListSb = $sessListSbTmp | sort Id -Unique
+  $allJobsSb = $allJobsSbTmp | Sort-Object Id -Unique
+  $sessListSb = $sessListSbTmp | Sort-Object Id -Unique
 }
 If ($onlyLastSb) {
   $tempSessListSb = $sessListSb
   $sessListSb = @()
   Foreach($job in $allJobsSb) {
-    $sessListSb += $tempSessListSb | ?{$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
+    $sessListSb += $tempSessListSb | Where-Object {$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
   }
 }
 # Get SureBackup Session information
-$successSessionsSb = @($sessListSb | ?{$_.Result -eq "Success"})
-$warningSessionsSb = @($sessListSb | ?{$_.Result -eq "Warning"})
-$failsSessionsSb = @($sessListSb | ?{$_.Result -eq "Failed"})
-$runningSessionsSb = @($sessListSb | ?{$_.State -ne "Stopped"})
+$successSessionsSb = @($sessListSb | Where-Object {$_.Result -eq "Success"})
+$warningSessionsSb = @($sessListSb | Where-Object {$_.Result -eq "Warning"})
+$failsSessionsSb = @($sessListSb | Where-Object {$_.Result -eq "Failed"})
+$runningSessionsSb = @($sessListSb | Where-Object {$_.State -ne "Stopped"})
 
 # Format Report Mode for header
 If (($reportMode -ne "Weekly") -And ($reportMode -ne "Monthly")) {
@@ -992,7 +692,7 @@ If ($dtSubject) {
 #endregion
 
 #region Functions
- 
+
 Function Get-VBRProxyInfo {
   [CmdletBinding()]
   param (
@@ -1002,15 +702,15 @@ Function Get-VBRProxyInfo {
   Begin {
     $outputAry = @()
     Function Build-Object {param ([PsObject]$inputObj)
-      $ping = new-object system.net.networkinformation.ping
+      $ping = New-Object system.net.networkinformation.ping
       $isIP = '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
       If ($inputObj.Host.Name -match $isIP) {
         $IPv4 = $inputObj.Host.Name
       } Else {
         $DNS = [Net.DNS]::GetHostEntry("$($inputObj.Host.Name)")
-        $IPv4 = ($DNS.get_AddressList() | Where {$_.AddressFamily -eq "InterNetwork"} | Select -First 1).IPAddressToString
+        $IPv4 = ($DNS.get_AddressList() | Where-Object {$_.AddressFamily -eq "InterNetwork"} | Select-Object -First 1).IPAddressToString
       }
-      $pinginfo = $ping.send("$($IPv4)")           
+      $pinginfo = $ping.send("$($IPv4)")
       If ($pinginfo.Status -eq "Success") {
         $hostAlive = "Alive"
         $response = $pinginfo.RoundtripTime
@@ -1022,13 +722,13 @@ Function Get-VBRProxyInfo {
         $enabled = "False"
       } Else {
         $enabled = "True"
-      }   
+      }
       $tMode = switch ($inputObj.Options.TransportMode) {
         "Auto" {"Automatic"}
         "San" {"Direct SAN"}
         "HotAdd" {"Hot Add"}
         "Nbd" {"Network"}
-        default {"Unknown"}   
+        default {"Unknown"}
       }
       $vPCFuncObject = New-Object PSObject -Property @{
         ProxyName = $inputObj.Name
@@ -1053,7 +753,7 @@ Function Get-VBRProxyInfo {
   }
   End {
     $outputAry
-  }   
+  }
 }
 
 Function Get-VBRRepoInfo {
@@ -1073,7 +773,7 @@ Function Get-VBRRepoInfo {
         StorageTotal = [Math]::Round([Decimal]$total/1GB,2)
         FreePercentage = [Math]::Round(($free/$total)*100)
         StorageBackup = [Math]::Round([Decimal]$rBackupsize/1GB,2)
-        StorageOther = [Math]::Round([Decimal]($total-$rBackupsize-$free)/1GB-0.5,2)																					
+        StorageOther = [Math]::Round([Decimal]($total-$rBackupsize-$free)/1GB-0.5,2)
         MaxTasks = $maxtasks
         rType = $rtype
       }
@@ -1092,7 +792,7 @@ Function Get-VBRRepoInfo {
         "ExaGrid" {"ExaGrid"}
         "HPStoreOnce" {"HP StoreOnce"}
         "Nfs" {"NFS Direct"}
-        default {"Unknown"}   
+        default {"Unknown"}
       }
       #ToDo: Check v10 Compatiblity. the .GetContainer().*.InBytes needs maybe removed. Maybe with if version Xy than?
       $outputObj = Build-Object $r.Name $($r.GetHost()).Name.ToLower() $r.Path $r.GetContainer().CachedFreeSpace.InBytes $r.GetContainer().CachedTotalSpace.InBytes $r.Options.MaxTaskCount $rType
@@ -1131,9 +831,9 @@ Function Get-VBRSORepoInfo {
   Process {
     Foreach ($rs in $Repository) {
       ForEach ($rp in $rs.Extent) {
-        $r = $rp.Repository 
+        $r = $rp.Repository
         # Refresh Repository Size Info
-        [Veeam.Backup.Core.CBackupRepositoryEx]::SyncSpaceInfoToDb($r, $true)           
+        [Veeam.Backup.Core.CBackupRepositoryEx]::SyncSpaceInfoToDb($r, $true)
 		$rBackupSize = [Veeam.Backup.Core.CBackupRepository]::GetRepositoryBackupsSize($r.Id.Guid)
         $rType = switch ($r.Type) {
           "WinLocal" {"Windows Local"}
@@ -1144,28 +844,28 @@ Function Get-VBRSORepoInfo {
           "HPStoreOnce" {"HPE StoreOnce"}
           "Nfs" {"NFS Direct"}
           "SanSnapshotOnly" {"SAN Snapshot"}
-          "Cloud" {"VCSP Cloud"}								
-          default {"Unknown"}     
+          "Cloud" {"VCSP Cloud"}
+          default {"Unknown"}
         }
-		if ($rtype -eq "SAN Snapshot" -or $rtype -eq "VCSP Cloud") {$maxTaskCount="N/A"} 
+		if ($rtype -eq "SAN Snapshot" -or $rtype -eq "VCSP Cloud") {$maxTaskCount="N/A"}
 		else {$maxTaskCount=$r.Options.MaxTaskCount}
         $outputObj = Build-Object $rs.Name $r.Name $($r.GetHost()).Name.ToLower() $r.Path $r.GetContainer().CachedFreeSpace.InBytes $r.GetContainer().CachedTotalSpace.InBytes $maxTaskCount $rType $rBackupSize
         $outputAry += $outputObj
       }
-    } 
+    }
   }
   End {
     $outputAry
   }
 }
 
-function Get-RepoPermissions {
+function Get-RepoPermission {
   $outputAry = @()
   $repoEPPerms = $script:repoList | get-vbreppermission
   $repoEPPermsSo = $script:repoListSo | get-vbreppermission
   ForEach ($repo in $repoEPPerms) {
     $objoutput = New-Object -TypeName PSObject -Property @{
-      Name = (Get-VBRBackupRepository | where {$_.Id -eq $repo.RepositoryId}).Name
+      Name = (Get-VBRBackupRepository | Where-Object {$_.Id -eq $repo.RepositoryId}).Name
       "Permission Type" = $repo.PermissionType
       Users = $repo.Users | Out-String
       "Encryption Enabled" = $repo.IsEncryptionEnabled
@@ -1174,7 +874,7 @@ function Get-RepoPermissions {
   }
   ForEach ($repo in $repoEPPermsSo) {
     $objoutput = New-Object -TypeName PSObject -Property @{
-      Name = "[SO] $((Get-VBRBackupRepository -ScaleOut | where {$_.Id -eq $repo.RepositoryId}).Name)"
+      Name = "[SO] $((Get-VBRBackupRepository -ScaleOut | Where-Object {$_.Id -eq $repo.RepositoryId}).Name)"
       "Permission Type" = $repo.PermissionType
       Users = $repo.Users | Out-String
       "Encryption Enabled" = $repo.IsEncryptionEnabled
@@ -1193,7 +893,7 @@ Function Get-VBRReplicaTarget {
   BEGIN {
     $outputAry = @()
     $dsAry = @()
-    If (($Name -ne $null) -and ($InputObj -eq $null)) {
+    If (($null -ne $Name) -and ($null -ne $InputObj)) {
       $InputObj = Get-VBRJob -Name $Name
     }
   }
@@ -1201,7 +901,7 @@ Function Get-VBRReplicaTarget {
     Foreach ($obj in $InputObj) {
       If (($dsAry -contains $obj.ViReplicaTargetOptions.DatastoreName) -eq $false) {
         $esxi = $obj.GetTargetHost()
-        $dtstr =  $esxi | Find-VBRViDatastore -Name $obj.ViReplicaTargetOptions.DatastoreName    
+        $dtstr =  $esxi | Find-VBRViDatastore -Name $obj.ViReplicaTargetOptions.DatastoreName
         $objoutput = New-Object -TypeName PSObject -Property @{
           Target = $esxi.Name
           Datastore = $obj.ViReplicaTargetOptions.DatastoreName
@@ -1217,64 +917,93 @@ Function Get-VBRReplicaTarget {
     }
   }
   END {
-    $outputAry | Select Target, Datastore, StorageFree, StorageTotal, FreePercentage
+    $outputAry | Select-Object Target, Datastore, StorageFree, StorageTotal, FreePercentage
   }
 }
- 
+
 Function Get-VeeamVersion {
   Try {
     $veeamCore = Get-Item -Path $veeamCorePath
     $VeeamVersion = [single]($veeamCore.VersionInfo.ProductVersion).substring(0,4)
     $productVersion=[string]$veeamCore.VersionInfo.ProductVersion
     $productHotfix=[string]$veeamCore.VersionInfo.Comments
-	Write-Host "Found Veeam Version       : $productVersion"
-	Write-Host "$productHotfix"
+    Write-Host "Found Veeam Version: $productVersion $productHotfix"
     $objectVersion = New-Object -TypeName PSObject -Property @{
           VeeamVersion = $VeeamVersion
           productVersion = $productVersion
           productHotfix = $productHotfix
     }
-	
+
     Return $objectVersion
   } Catch {
-    Write-Host "Unable to Locate Veeam Core, check path - $veeamCorePath" -ForegroundColor Red
-    exit  
+    Write-Error "Unable to Locate Veeam Core, check path - $veeamCorePath" -ForegroundColor Red
+    exit
   }
-} 
- 
-Function Get-VeeamSupportDate {
-  param (
-    [string]$vbrServer
-  ) 
-  # Query (remote) registry with WMI for license info
-  Try{
-    $wmi = get-wmiobject -list "StdRegProv" -namespace root\default -computername $vbrServer -ErrorAction Stop
-    $hklm = 2147483650
-    $bKey = "SOFTWARE\Veeam\Veeam Backup and Replication\license"
-    $bValue = "Lic1"
-    $regBinary = ($wmi.GetBinaryValue($hklm, $bKey, $bValue)).uValue
-    $veeamLicInfo = [string]::Join($null, ($regBinary | % { [char][int]$_; }))
-    # Convert Binary key
-    $pattern = "License expires\=\d{1,2}\/\d{1,2}\/\d{1,4}"
-    $expirationDate = [regex]::matches($VeeamLicInfo, $pattern)[0].Value.Split("=")[1]
-    $datearray = $expirationDate -split '/'
-    $expirationDate = Get-Date -Day $datearray[0] -Month $datearray[1] -Year $datearray[2]
-    $totalDaysLeft = ($expirationDate - (get-date)).Totaldays.toString().split(",")[0]
-    $totalDaysLeft = [int]$totalDaysLeft
-    $objoutput = New-Object -TypeName PSObject -Property @{
-      ExpDate = $expirationDate.ToShortDateString()
-      DaysRemain = $totalDaysLeft
-    }
-  } Catch{
-    $objoutput = New-Object -TypeName PSObject -Property @{
-      ExpDate = "WMI Connection Failed"
-      DaysRemain = "WMI Connection Failed"
-    }
-  }
-  $objoutput
-} 
+}
 
-Function Get-VeeamWinServers {
+# Function Get-VeeamSupportDate {
+#   param (
+#     [string]$vbrServer
+#   )
+#   # Query (remote) registry with WMI for license info
+#   Try{
+#     $wmi = get-wmiobject -list "StdRegProv" -namespace root\default -computername $vbrServer -ErrorAction Stop
+#     $hklm = 2147483650
+#     $bKey = "SOFTWARE\Veeam\Veeam Backup and Replication\license"
+#     $bValue = "Lic1"
+#     $regBinary = ($wmi.GetBinaryValue($hklm, $bKey, $bValue)).uValue
+#     $veeamLicInfo = [string]::Join($null, ($regBinary | % { [char][int]$_; }))
+#     # Convert Binary key
+#     $pattern = "License expires\=\d{1,2}\/\d{1,2}\/\d{1,4}"
+#     $expirationDate = [regex]::matches($VeeamLicInfo, $pattern)[0].Value.Split("=")[1]
+#     $datearray = $expirationDate -split '/'
+#     $expirationDate = Get-Date -Day $datearray[0] -Month $datearray[1] -Year $datearray[2]
+#     $totalDaysLeft = ($expirationDate - (get-date)).Totaldays.toString().split(",")[0]
+#     $totalDaysLeft = [int]$totalDaysLeft
+#     $objoutput = New-Object -TypeName PSObject -Property @{
+#       ExpDate = $expirationDate.ToShortDateString()
+#       DaysRemain = $totalDaysLeft
+#     }
+#   } Catch{
+#     $objoutput = New-Object -TypeName PSObject -Property @{
+#       ExpDate = "WMI Connection Failed"
+#       DaysRemain = "WMI Connection Failed"
+#     }
+#   }
+#   $objoutput
+# }
+
+
+Function Get-VeeamSupportDate {
+    # Query (remote) registry with WMI for license info
+    $licenseInfo = Get-VBRInstalledLicense
+
+    $type = $licenseinfo.Type
+
+    switch ( $type ) {
+        'Perpetual' {
+            $date = $licenseInfo.SupportExpirationDate
+        }
+        'Evaluation' {
+            # No expiration
+            $date = Get-Date
+        }
+        'Subscription' {
+            $date = $licenseInfo.ExpirationDate
+        }
+        'Rental' {
+            $date = $licenseInfo.ExpirationDate
+        }
+    }
+
+    [PSCustomObject]@{
+       LicType    = $type
+       ExpDate    = $date.ToShortDateString()
+       DaysRemain = ($date - (Get-Date)).Days
+    }
+}
+
+Function Get-VeeamWinServer {
   $vservers=@{}
   $outputAry = @()
   $vservers.add($($script:vbrServerObj.Name),"VBRServer")
@@ -1290,18 +1019,18 @@ Function Get-VeeamWinServers {
   }
   Foreach ($rs in $script:repoListSo) {
     ForEach ($rp in $rs.Extent) {
-      $r = $rp.Repository 
+      $r = $rp.Repository
       $rName = $($r.GetHost()).Name
       If ($r.Type -ne "LinuxLocal" -and !$vservers.ContainsKey($rName)) {
         $vservers.Add($rName,"RepoSoServer")
       }
     }
-  }  
+  }
   Foreach ($srv in $script:tapesrvList) {
     If (!$vservers.ContainsKey($srv.Name)) {
       $vservers.Add($srv.Name,"TapeServer")
     }
-  }  
+  }
   $vservers = $vservers.GetEnumerator() | Sort-Object Name
   Foreach ($vserver in $vservers) {
     $outputAry += $vserver.Name
@@ -1309,24 +1038,24 @@ Function Get-VeeamWinServers {
   return $outputAry
 }
 
-Function Get-VeeamServices {
+Function Get-VeeamService {
   param (
     [PSObject]$inputObj
-  )   
+  )
   $outputAry = @()
-  Foreach ($obj in $InputObj) {    
+  Foreach ($obj in $InputObj) {
     $output = @()
     Try {
       $output = Get-Service -computername $obj -Name "*Veeam*" -exclude "SQLAgent*" |
-        Select @{Name="Server Name"; Expression = {$obj.ToLower()}}, @{Name="Service Name"; Expression = {$_.DisplayName}}, Status
+        Select-Object @{Name="Server Name"; Expression = {$obj.ToLower()}}, @{Name="Service Name"; Expression = {$_.DisplayName}}, Status
     } Catch {
       $output = New-Object PSObject -Property @{
         "Server Name" = $obj.ToLower()
         "Service Name" = "Unable to connect"
         Status = "Unknown"
       }
-    }   
-    $outputAry += $output  
+    }
+    $outputAry += $output
   }
   $outputAry
 }
@@ -1334,32 +1063,33 @@ Function Get-VeeamServices {
 Function Get-VMsBackupStatus {
   $outputary = @()
   # Convert exclusion list to simple regular expression
-  $excludevms_regex = ('(?i)^(' + (($script:excludeVMs | ForEach {[regex]::escape($_)}) -join "|") + ')$') -replace "\\\*", ".*"
-  $excludefolder_regex = ('(?i)^(' + (($script:excludeFolder | ForEach {[regex]::escape($_)}) -join "|") + ')$') -replace "\\\*", ".*"
-  $excludedc_regex = ('(?i)^(' + (($script:excludeDC | ForEach {[regex]::escape($_)}) -join "|") + ')$') -replace "\\\*", ".*"
+  $excludevms_regex = ('(?i)^(' + (($script:excludeVMs | ForEach-Object {[regex]::escape($_)}) -join "|") + ')$') -replace "\\\*", ".*"
+  $excludefolder_regex = ('(?i)^(' + (($script:excludeFolder | ForEach-Object {[regex]::escape($_)}) -join "|") + ')$') -replace "\\\*", ".*"
+  $excludedc_regex = ('(?i)^(' + (($script:excludeDC | ForEach-Object {[regex]::escape($_)}) -join "|") + ')$') -replace "\\\*", ".*"
   $vms=@{}
   # Build a hash table of all VMs.  Key is either Job Object Id (for any VM ever in a Veeam job) or vCenter ID+MoRef
   # Assume unprotected (!), and populate Cluster, DataCenter, and Name fields for hash key value
-  Find-VBRViEntity | 
+  Find-VBRViEntity |
     Where-Object {$_.Type -eq "Vm" -and $_.VmFolderName -notmatch $excludefolder_regex} |
     Where-Object {$_.Name -notmatch $excludevms_regex} |
     Where-Object {$_.Path.Split("\")[1] -notmatch $excludedc_regex} |
-    ForEach {$vms.Add(($_.FindObject().Id, $_.Id -ne $null)[0], @("!", $_.Path.Split("\")[0], $_.Path.Split("\")[1], $_.Path.Split("\")[2], $_.Name, "1/11/1911", "1/11/1911","", $_.VmFolderName))}
+    ForEach-Object {$vms.Add(($_.FindObject().Id, $_.Id -ne $null)[0], @("!", $_.Path.Split("\")[0], $_.Path.Split("\")[1], $_.Path.Split("\")[2], $_.Name, "1/11/1911", "1/11/1911","", $_.VmFolderName))}
+
   If (!$script:excludeTemp) {
     Find-VBRViEntity -VMsandTemplates |
       Where-Object {$_.Type -eq "Vm" -and $_.IsTemplate -eq "True" -and $_.VmFolderName -notmatch $excludefolder_regex} |
       Where-Object {$_.Name -notmatch $excludevms_regex} |
       Where-Object {$_.Path.Split("\")[1] -notmatch $excludedc_regex} |
-      ForEach {$vms.Add(($_.FindObject().Id, $_.Id -ne $null)[0], @("!", $_.Path.Split("\")[0], $_.Path.Split("\")[1], $_.VmHostName, "[template] $($_.Name)", "1/11/1911", "1/11/1911","", $_.VmFolderName))}
+      ForEach-Object {$vms.Add(($_.FindObject().Id, $_.Id -ne $null)[0], @("!", $_.Path.Split("\")[0], $_.Path.Split("\")[1], $_.VmHostName, "[template] $($_.Name)", "1/11/1911", "1/11/1911","", $_.VmFolderName))}
   }
   # Find all backup task sessions that have ended in the last x hours
-  $vbrtasksessions = (Get-VBRBackupSession | 
+  $vbrtasksessions = (Get-VBRBackupSession |
     Where-Object {($_.JobType -eq "Backup") -and ($_.EndTime -ge (Get-Date).addhours(-$script:HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$script:HourstoCheck) -or $_.State -eq "Working")}) |
     Get-VBRTaskSession | Where-Object {$_.Status -notmatch "InProgress|Pending"}
   # Compare VM list to session list and update found VMs status
   If ($vbrtasksessions) {
-    Foreach ($vmtask in $vbrtasksessions) {
-      If($vms.ContainsKey($vmtask.Info.ObjectId)) {
+    ForEach ($vmtask in $vbrtasksessions) {
+      If ($vms.ContainsKey($vmtask.Info.ObjectId)) {
         If ((Get-Date $vmtask.Progress.StartTimeLocal) -ge (Get-Date $vms[$vmtask.Info.ObjectId][5])) {
           If ($vmtask.Status -eq "Success") {
             $vms[$vmtask.Info.ObjectId][0]=$vmtask.Status
@@ -1380,7 +1110,7 @@ Function Get-VMsBackupStatus {
         }
       }
     }
-  }    
+  }
   Foreach ($vm in $vms.GetEnumerator()) {
     $objoutput = New-Object -TypeName PSObject -Property @{
       Status = $vm.Value[0]
@@ -1417,11 +1147,11 @@ function Get-BackupSize {
     Foreach ($file in $Files) {
       $backupSize += [math]::Round([long]$file.Stats.BackupSize/1GB, 2)
       $dataSize += [math]::Round([long]$file.Stats.DataSize/1GB, 2)
-    }         
-    $repo = If ($($script:repoList | Where {$_.Id -eq $backup.RepositoryId}).Name) {
-              $($script:repoList | Where {$_.Id -eq $backup.RepositoryId}).Name
+    }
+    $repo = If ($($script:repoList | Where-Object {$_.Id -eq $backup.RepositoryId}).Name) {
+              $($script:repoList | Where-Object {$_.Id -eq $backup.RepositoryId}).Name
             } Else {
-              $($script:repoListSo | Where {$_.Id -eq $backup.RepositoryId}).Name
+              $($script:repoListSo | Where-Object {$_.Id -eq $backup.RepositoryId}).Name
             }
     $vbrMasterHash = @{
       JobName = $backup.JobName
@@ -1435,15 +1165,15 @@ function Get-BackupSize {
   }
   $outputObj
 }
-Function Get-MultiJobs {
+Function Get-MultiJob {
   $outputAry = @()
-  $vmMultiJobs = (Get-VBRBackupSession | 
-    Where-Object {($_.JobType -eq "Backup") -and ($_.EndTime -ge (Get-Date).addhours(-$script:HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$script:HourstoCheck) -or $_.State -eq "Working")}) | 
-    Get-VBRTaskSession | Select Name, @{Name="VMID"; Expression = {$_.Info.ObjectId}}, JobName -Unique | Group Name, VMID | where {$_.Count -gt 1} | Select -ExpandProperty Group
+  $vmMultiJobs = (Get-VBRBackupSession |
+    Where-Object {($_.JobType -eq "Backup") -and ($_.EndTime -ge (Get-Date).addhours(-$script:HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$script:HourstoCheck) -or $_.State -eq "Working")}) |
+    Get-VBRTaskSession | Select-Object Name, @{Name="VMID"; Expression = {$_.Info.ObjectId}}, JobName -Unique | Group-Object Name, VMID | Where-Object {$_.Count -gt 1} | Select-Object -ExpandProperty Group
   ForEach ($vm in $vmMultiJobs) {
     $objID = $vm.VMID
-    $viEntity = Find-VBRViEntity -name $vm.Name | Where {$_.FindObject().Id -eq $objID}  
-    If ($viEntity -ne $null) {
+    $viEntity = Find-VBRViEntity -name $vm.Name | Where-Object {$_.FindObject().Id -eq $objID}
+    If ($null -ne $viEntity) {
       $objoutput = New-Object -TypeName PSObject -Property @{
         Name = $vm.Name
         vCenter = $viEntity.Path.Split("\")[0]
@@ -1454,8 +1184,8 @@ Function Get-MultiJobs {
       }
       $outputAry += $objoutput
     } Else { #assume Template
-      $viEntity = Find-VBRViEntity -VMsAndTemplates -name $vm.Name | Where {$_.FindObject().Id -eq $objID}
-      If ($viEntity -ne $null) {
+      $viEntity = Find-VBRViEntity -VMsAndTemplates -name $vm.Name | Where-Object {$_.FindObject().Id -eq $objID}
+      If ($null -ne $viEntity) {
         $objoutput = New-Object -TypeName PSObject -Property @{
           Name = "[template] " + $vm.Name
           vCenter = $viEntity.Path.Split("\")[0]
@@ -1467,65 +1197,65 @@ Function Get-MultiJobs {
       }
       If ($objoutput) {
         $outputAry += $objoutput
-      }    
+      }
     }
-  }  
+  }
   $outputAry
 }
 #endregion
- 
+
 #region Report
 # Get Veeam Version
 $objectVersion = Get-VeeamVersion
-										
+
 
 If ($objectVersion.VeeamVersion -lt 11.0) {
   Write-Host "Script requires VBR v11.0 or higher" -ForegroundColor Red
-																	
   exit
 }
 
 
 Write-Host "Generating reports, please be patient ..."
-													  
+
 # HTML Stuff
 $headerObj = @"
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
     <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <title>$rptTitle</title>
-            <style>  
-              body {font-family: Tahoma; background-color:#ffffff;}
-              table {font-family: Tahoma;width: $($rptWidth)%;font-size: 12px;border-collapse:collapse;}
-              <!-- table tr:nth-child(odd) td {background: #e2e2e2;} -->
-              th {background-color: #e2e2e2;border: 1px solid #a7a9ac;border-bottom: none;}
-              td {background-color: #ffffff;border: 1px solid #a7a9ac;padding: 2px 3px 2px 3px;}
+            <style type="text/css">
+              body {font-family: Tahoma; background-color: #ffffff;}
+              table {font-family: Tahoma; width: $($rptWidth)%; font-size: 12px; border-collapse: collapse; margin-left: auto; margin-right: auto;}
+              table tr:nth-child(odd) td {background: $oddColor;}
+              th {background-color: #e2e2e2; border: 1px solid #a7a9ac;border-bottom: none;}
+              td {background-color: #ffffff; border: 1px solid #a7a9ac;padding: 2px 3px 2px 3px;}
             </style>
     </head>
 "@
- 
+
 $bodyTop = @"
     <body>
-        <center>
-            <table>
-                <tr>
-                    <td style="width: 50%;height: 14px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 10px;vertical-align: bottom;text-align: left;padding: 2px 0px 0px 5px;"></td>
-                    <td style="width: 50%;height: 14px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: right;padding: 2px 5px 0px 0px;">Report generated on $(Get-Date -format g)</td>
-                </tr>
-                <tr>
-                    <td style="width: 50%;height: 24px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 24px;vertical-align: bottom;text-align: left;padding: 0px 0px 0px 15px;">$rptTitle</td>
-                    <td style="width: 50%;height: 24px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: right;padding: 0px 5px 2px 0px;">$vbrName</td>
-                </tr>
-                <tr>
-                    <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: left;padding: 0px 0px 0px 5px;"></td>
-                    <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: right;padding: 0px 5px 0px 0px;">VBR v$VeeamVersion</td>
-                </tr>
-                <tr>
-                    <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: left;padding: 0px 0px 2px 5px;">$rptMode</td>
-                    <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: right;padding: 0px 5px 2px 0px;">MVR v$MVRversion</td>
-                </tr>
-            </table>
+          <table>
+              <tr>
+                  <td style="width: 50%;height: 14px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 10px;vertical-align: bottom;text-align: left;padding: 2px 0px 0px 5px;"></td>
+                  <td style="width: 50%;height: 14px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: right;padding: 2px 5px 0px 0px;">Report generated on $(Get-Date -format g)</td>
+              </tr>
+              <tr>
+                  <td style="width: 50%;height: 24px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 24px;vertical-align: bottom;text-align: left;padding: 0px 0px 0px 15px;">$rptTitle</td>
+                  <td style="width: 50%;height: 24px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: right;padding: 0px 5px 2px 0px;">$vbrName</td>
+              </tr>
+              <tr>
+                  <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: left;padding: 0px 0px 0px 5px;"></td>
+                  <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: right;padding: 0px 5px 0px 0px;">VBR v$($objectVersion.productVersion)</td>
+              </tr>
+              <tr>
+                  <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: left;padding: 0px 0px 2px 5px;">$rptMode</td>
+                  <td style="width: 50%;height: 12px;border: none;background-color: ZZhdbgZZ;color: White;font-size: 12px;vertical-align: bottom;text-align: right;padding: 0px 5px 2px 0px;">MVR v$MVRversion</td>
+              </tr>
+          </table>
 "@
- 
+
 $subHead01 = @"
 <table>
                 <tr>
@@ -1550,6 +1280,12 @@ $subHead01err = @"
                     <td style="height: 35px;background-color: #FB9895;color: #ffffff;font-size: 16px;padding: 5px 0 0 15px;border-top: 5px solid white;border-bottom: none;">
 "@
 
+$subHead01inf = @"
+<table>
+                <tr>
+                    <td style="height: 35px;background-color: #3399FF;color: #ffffff;font-size: 16px;padding: 5px 0 0 15px;border-top: 5px solid white;border-bottom: none;">
+"@
+
 $subHead02 = @"
 </td>
                 </tr>
@@ -1565,23 +1301,22 @@ $HTMLbreak = @"
 "@
 
 $footerObj = @"
-<table>
+            <table>
                 <tr>
                     <td style="height: 15px;background-color: #ffffff;border: none;color: #626365;font-size: 10px;text-align:center;">My Veeam Report developed by <a href="http://blog.smasterson.com" target="_blank">http://blog.smasterson.com</a> and modified for V11 by <a href="http://horstmann.in" target="_blank">http://horstmann.in</a></td>
                 </tr>
             </table>
-        </center>
     </body>
 </html>
 "@
 
 #Get VM Backup Status
 $vmStatus = @()
-If ($showSummaryProtect + $showUnprotectedVMs + $showProtectedVMs) {
+If ($showSummaryProtect + $showUnprotectedVMs + $showUnprotectedVMsInfo + $showProtectedVMs) {
   $vmStatus = Get-VMsBackupStatus
 }
 # VMs Missing Backups
-$missingVMs = @($vmStatus | ?{$_.Status -match "!|Failed"})
+$missingVMs = @($vmStatus | Where-Object {$_.Status -match "!|Failed"})
 ForEach ($VM in $missingVMs) {
   If ($VM.Status -eq "!") {
     $VM.Details = "No Backup Task has completed"
@@ -1590,9 +1325,9 @@ ForEach ($VM in $missingVMs) {
   }
 }
 # VMs Successfuly Backed Up
-$successVMs = @($vmStatus | ?{$_.Status -eq "Success"})
+$successVMs = @($vmStatus | Where-Object {$_.Status -eq "Success"})
 # VMs Backed Up w/Warning
-$warnVMs = @($vmStatus | ?{$_.Status -eq "Warning"})
+$warnVMs = @($vmStatus | Where-Object {$_.Status -eq "Warning"})
 
 # Get VM Backup Protection Summary
 $bodySummaryProtect = $null
@@ -1610,39 +1345,51 @@ If ($showSummaryProtect) {
   }
   If (@($missingVMs).Count -ge 1) {
     $percentProt = (@($warnVMs).Count + @($successVMs).Count) / (@($warnVMs).Count + @($successVMs).Count + @($missingVMs).Count)
-    $sumprotectHead = $subHead01err
-  }  
+    If ($showUnprotectedVMsInfo) {
+      $sumprotectHead = $subHead01inf
+    } Else {
+      $sumprotectHead = $subHead01err
+    }
+  }
   $vbrMasterHash = @{
     WarningVM = @($warnVMs).Count
     ProtectedVM = @($successVMs).Count
-    FailedVM = @($missingVMs).Count
+    UnprotectedVM = @($missingVMs).Count
     PercentProt = "{0:P2}{1}" -f $percentProt,$percentWarn
-    
+
   }
   $vbrMasterObj = New-Object -TypeName PSObject -Property $vbrMasterHash
-  $summaryProtect =  $vbrMasterObj | Select @{Name="% Protected"; Expression = {$_.PercentProt}},
+  $summaryProtect =  $vbrMasterObj | Select-Object @{Name="% Protected"; Expression = {$_.PercentProt}},
     @{Name="Fully Protected VMs"; Expression = {$_.ProtectedVM}},
     @{Name="Protected VMs w/Warnings"; Expression = {$_.WarningVM}},
-    @{Name="Unprotected VMs"; Expression = {$_.FailedVM}}
+    @{Name="Unprotected VMs"; Expression = {$_.UnprotectedVM}}
   $bodySummaryProtect = $summaryProtect | ConvertTo-HTML -Fragment
   $bodySummaryProtect = $sumprotectHead + "VM Backup Protection Summary" + $subHead02 + $bodySummaryProtect
 }
 
+
 # Get VMs Missing Backups
 $bodyMissing = $null
-If ($showUnprotectedVMs) {  
-  If ($missingVMs -ne $null) {
-    $missingVMs = $missingVMs | Sort vCenter, Datacenter, Cluster, Name | Select Name, vCenter, Datacenter, Cluster, Folder,
-      @{Name="Last Start Time"; Expression = {$_.StartTime}}, @{Name="Last End Time"; Expression = {$_.StopTime}}, Details | ConvertTo-HTML -Fragment
-    $bodyMissing = $subHead01err + "VMs with No Successful Backups within RPO" + $subHead02 + $missingVMs
+If ($showUnprotectedVMs -Or $showUnprotectedVMsInfo) {
+  If ($missingVMs.count -gt 0) {
+
+    If ($showUnprotectedVMsInfo) {
+      $missingVMs = $missingVMs | Sort-Object vCenter, Datacenter, Cluster, Name | Select-Object Name, vCenter, Datacenter, Cluster, Folder,
+        @{Name="Last Start Time"; Expression = {$_.StartTime}}, @{Name="Last End Time"; Expression = {$_.StopTime}}, Details | ConvertTo-HTML -Fragment
+      $bodyMissing = $subHead01inf + "Unprotected VMs within RPO" + $subHead02 + $missingVMs
+    } Else{
+      $missingVMs = $missingVMs | Sort-Object vCenter, Datacenter, Cluster, Name | Select-Object Name, vCenter, Datacenter, Cluster, Folder,
+        @{Name="Last Start Time"; Expression = {$_.StartTime}}, @{Name="Last End Time"; Expression = {$_.StopTime}}, Details | ConvertTo-HTML -Fragment
+      $bodyMissing = $subHead01err + "VMs with No Successful Backups within RPO" + $subHead02 + $missingVMs
+    }
   }
 }
 
 # Get VMs Backed Up w/Warnings
 $bodyWarning = $null
-If ($showProtectedVMs) {    
-  If ($warnVMs -ne $null) {
-    $warnVMs = $warnVMs | Sort vCenter, Datacenter, Cluster, Name | Select Name, vCenter, Datacenter, Cluster, Folder,
+If ($showProtectedVMs) {
+  If ($warnVMs.Count -gt 0) {
+    $warnVMs = $warnVMs | Sort-Object vCenter, Datacenter, Cluster, Name | Select-Object Name, vCenter, Datacenter, Cluster, Folder,
       @{Name="Last Start Time"; Expression = {$_.StartTime}}, @{Name="Last End Time"; Expression = {$_.StopTime}}, Details | ConvertTo-HTML -Fragment
     $bodyWarning = $subHead01war + "VMs with only Backups with Warnings within RPO" + $subHead02 + $warnVMs
   }
@@ -1650,9 +1397,9 @@ If ($showProtectedVMs) {
 
 # Get VMs Successfuly Backed Up
 $bodySuccess = $null
-If ($showProtectedVMs) {    
-  If ($successVMs -ne $null) {
-    $successVMs = $successVMs | Sort vCenter, Datacenter, Cluster, Name | Select Name, vCenter, Datacenter, Cluster, Folder,
+If ($showProtectedVMs) {
+  If ($successVMs.Count -gt 0) {
+    $successVMs = $successVMs | Sort-Object vCenter, Datacenter, Cluster, Name | Select-Object Name, vCenter, Datacenter, Cluster, Folder,
       @{Name="Last Start Time"; Expression = {$_.StartTime}}, @{Name="Last End Time"; Expression = {$_.StopTime}} | ConvertTo-HTML -Fragment
     $bodySuccess = $subHead01suc + "VMs with Successful Backups within RPO" + $subHead02 + $successVMs
   }
@@ -1660,10 +1407,10 @@ If ($showProtectedVMs) {
 
 # Get VMs Backed Up by Multiple Jobs
 $bodyMultiJobs = $null
-If ($showMultiJobs) {    
-  $multiJobs = @(Get-MultiJobs)
+If ($showMultiJobs) {
+  $multiJobs = @(Get-MultiJob)
   If ($multiJobs.Count -gt 0) {
-    $bodyMultiJobs = $multiJobs | Sort vCenter, Datacenter, Cluster, Name | Select Name, vCenter, Datacenter, Cluster, Folder,
+    $bodyMultiJobs = $multiJobs | Sort-Object vCenter, Datacenter, Cluster, Name | Select-Object Name, vCenter, Datacenter, Cluster, Folder,
       @{Name="Job Name"; Expression = {$_.JobName}} | ConvertTo-HTML -Fragment
     $bodyMultiJobs = $subHead01err + "VMs Backed Up by Multiple Jobs within RPO" + $subHead02 + $bodyMultiJobs
   }
@@ -1688,7 +1435,7 @@ If ($showSummaryBk) {
   } Else {
     $total = "Total Sessions"
   }
-  $arrSummaryBk =  $vbrMasterObj | Select @{Name=$total; Expression = {$_.Sessions}},
+  $arrSummaryBk =  $vbrMasterObj | Select-Object @{Name=$total; Expression = {$_.Sessions}},
     @{Name="Read (GB)"; Expression = {$_.Read}}, @{Name="Transferred (GB)"; Expression = {$_.Transferred}},
     @{Name="Running"; Expression = {$_.Running}}, @{Name="Successful"; Expression = {$_.Successful}},
     @{Name="Warnings"; Expression = {$_.Warning}}, @{Name="Failures"; Expression = {$_.Fails}},
@@ -1712,36 +1459,36 @@ If ($showJobsBk) {
   If ($allJobsBk.count -gt 0) {
     $bodyJobsBk = @()
     Foreach($bkJob in $allJobsBk) {
-      $bodyJobsBk += $bkJob | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodyJobsBk += $bkJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Enabled"; Expression = {$_.IsScheduleEnabled}},
         @{Name="Status"; Expression = {
           If ($bkJob.IsRunning) {
-            $currentSess = $runningSessionsBk | ?{$_.JobName -eq $bkJob.Name}
+            $currentSess = $runningSessionsBk | Where-Object {$_.JobName -eq $bkJob.Name}
             $csessPercent = $currentSess.Progress.Percents
             $csessSpeed = [Math]::Round($currentSess.Progress.AvgSpeed/1MB,2)
             $cStatus = "$($csessPercent)% completed at $($csessSpeed) MB/s"
             $cStatus
           } Else {
             "Stopped"
-          }             
+          }
         }},
         @{Name="Target Repo"; Expression = {
-          If ($($repoList | Where {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name) {
-            $($repoList | Where {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name
+          If ($($repoList | Where-Object {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name) {
+            $($repoList | Where-Object {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name
           } Else {
-            $($repoListSo | Where {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name
+            $($repoListSo | Where-Object {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name
           }
         }},
         @{Name="Next Run"; Expression = {
           If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
           ElseIf ($_.Options.JobOptions.RunManually) {"<not scheduled>"}
           ElseIf ($_.ScheduleOptions.IsContinuous) {"<Continuous>"}
-		  ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where {$_.Id -eq $bkJob.Info.ParentScheduleId}).Name + "]"}
+		  ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where-Object {$_.Id -eq $bkJob.Info.ParentScheduleId}).Name + "]"}
 		  Else {$_.ScheduleOptions.NextRun}
         }},
         @{Name="Last Result"; Expression = {If ($_.Info.LatestStatus -eq "None"){"Unknown"}Else{$_.Info.LatestStatus}}}
     }
-    $bodyJobsBk = $bodyJobsBk | Sort "Next Run" | ConvertTo-HTML -Fragment
+    $bodyJobsBk = $bodyJobsBk | Sort-Object "Next Run" | ConvertTo-HTML -Fragment
     $bodyJobsBk = $subHead01 + "Backup Job Status" + $subHead02 + $bodyJobsBk
   }
 }
@@ -1750,7 +1497,7 @@ If ($showJobsBk) {
 $bodyJobSizeBk = $null
 If ($showBackupSizeBk) {
   If ($backupsBk.count -gt 0) {
-    $bodyJobSizeBk = Get-BackupSize -backups $backupsBk | Sort JobName | Select @{Name="Job Name"; Expression = {$_.JobName}},
+    $bodyJobSizeBk = Get-BackupSize -backups $backupsBk | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
       @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
@@ -1764,11 +1511,11 @@ $bodyAllSessBk = $null
 If ($showAllSessBk) {
   If ($sessListBk.count -gt 0) {
     If ($showDetailedBk) {
-      $arrAllSessBk = $sessListBk | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrAllSessBk = $sessListBk | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="State"; Expression = {$_.State}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
@@ -1790,10 +1537,10 @@ If ($showAllSessBk) {
         $allSessBkHead = $subHead01suc
       } Else {
         $allSessBkHead = $subHead01
-      }      
+      }
       $bodyAllSessBk = $allSessBkHead + "Backup Sessions" + $subHead02 + $bodyAllSessBk
     } Else {
-      $arrAllSessBk = $sessListBk | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrAllSessBk = $sessListBk | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="State"; Expression = {$_.State}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
@@ -1818,7 +1565,7 @@ If ($showAllSessBk) {
 $bodyRunningBk = $null
 If ($showRunningBk) {
   If ($runningSessionsBk.count -gt 0) {
-    $bodyRunningBk = $runningSessionsBk | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+    $bodyRunningBk = $runningSessionsBk | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
       @{Name="Start Time"; Expression = {$_.CreationTime}},
       @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
       @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
@@ -1827,7 +1574,7 @@ If ($showRunningBk) {
       @{Name="% Complete"; Expression = {$_.Progress.Percents}} | ConvertTo-HTML -Fragment
     $bodyRunningBk = $subHead01 + "Running Backup Jobs" + $subHead02 + $bodyRunningBk
   }
-} 
+}
 
 # Get Backup Sessions with Warnings or Failures
 $bodySessWFBk = $null
@@ -1840,10 +1587,10 @@ If ($showWarnFailBk) {
       $headerWF = "Backup Sessions with Warnings or Failures"
     }
     If ($showDetailedBk) {
-      $arrSessWFBk = $sessWF | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrSessWFBk = $sessWF | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
@@ -1856,7 +1603,7 @@ If ($showWarnFailBk) {
           If ($_.Progress.ReadSize -eq 0) {0}
           Else {([string][Math]::Round($_.BackupStats.GetCompressX(),1)) +"x"}}},
         @{Name="Details"; Expression = {
-          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | %{If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
+          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | ForEach-Object {If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
           Else {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}, Result
       $bodySessWFBk = $arrSessWFBk | ConvertTo-HTML -Fragment
       If ($arrSessWFBk.Result -match "Failed") {
@@ -1867,15 +1614,15 @@ If ($showWarnFailBk) {
         $sessWFBkHead = $subHead01suc
       } Else {
         $sessWFBkHead = $subHead01
-      }      
+      }
       $bodySessWFBk = $sessWFBkHead + $headerWF + $subHead02 + $bodySessWFBk
     } Else {
-      $arrSessWFBk = $sessWF | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrSessWFBk = $sessWF | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {
-          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | %{If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
+          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | ForEach-Object {If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
           Else {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}, Result
       $bodySessWFBk = $arrSessWFBk | ConvertTo-HTML -Fragment
       If ($arrSessWFBk.Result -match "Failed") {
@@ -1886,7 +1633,7 @@ If ($showWarnFailBk) {
         $sessWFBkHead = $subHead01suc
       } Else {
         $sessWFBkHead = $subHead01
-      }      
+      }
       $bodySessWFBk = $sessWFBkHead + $headerWF + $subHead02 + $bodySessWFBk
     }
   }
@@ -1902,7 +1649,7 @@ If ($showSuccessBk) {
       $headerSucc = "Successful Backup Sessions"
     }
     If ($showDetailedBk) {
-      $bodySessSuccBk = $successSessionsBk | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessSuccBk = $successSessionsBk | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
@@ -1920,7 +1667,7 @@ If ($showSuccessBk) {
         Result  | ConvertTo-HTML -Fragment
       $bodySessSuccBk = $subHead01suc + $headerSucc + $subHead02 + $bodySessSuccBk
     } Else {
-      $bodySessSuccBk = $successSessionsBk | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessSuccBk = $successSessionsBk | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
@@ -1934,28 +1681,28 @@ If ($showSuccessBk) {
 # Gather all Backup Tasks from Sessions within time frame
 $taskListBk = @()
 $taskListBk += $sessListBk | Get-VBRTaskSession
-$successTasksBk = @($taskListBk | ?{$_.Status -eq "Success"})
-$wfTasksBk = @($taskListBk | ?{$_.Status -match "Warning|Failed"})
+$successTasksBk = @($taskListBk | Where-Object {$_.Status -eq "Success"})
+$wfTasksBk = @($taskListBk | Where-Object {$_.Status -match "Warning|Failed"})
 $runningTasksBk = @()
-$runningTasksBk += $runningSessionsBk | Get-VBRTaskSession | ?{$_.Status -match "Pending|InProgress"}
+$runningTasksBk += $runningSessionsBk | Get-VBRTaskSession | Where-Object {$_.Status -match "Pending|InProgress"}
 
 # Get all Backup Tasks
 $bodyAllTasksBk = $null
 If ($showAllTasksBk) {
   If ($taskListBk.count -gt 0) {
     If ($showDetailedBk) {
-      $arrAllTasksBk = $taskListBk | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrAllTasksBk = $taskListBk | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {If ($_.Progress.StopTimeLocal -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.Progress.StopTimeLocal}}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyAllTasksBk = $arrAllTasksBk | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyAllTasksBk = $arrAllTasksBk | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrAllTasksBk.Status -match "Failed") {
         $allTasksBkHead = $subHead01err
       } ElseIf ($arrAllTasksBk.Status -match "Warning") {
@@ -1964,16 +1711,16 @@ If ($showAllTasksBk) {
         $allTasksBkHead = $subHead01suc
       } Else {
         $allTasksBkHead = $subHead01
-      }      
+      }
       $bodyAllTasksBk = $allTasksBkHead + "Backup Tasks" + $subHead02 + $bodyAllTasksBk
     } Else {
-      $arrAllTasksBk = $taskListBk | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrAllTasksBk = $taskListBk | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {If ($_.Progress.StopTimeLocal -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.Progress.StopTimeLocal}}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyAllTasksBk = $arrAllTasksBk | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyAllTasksBk = $arrAllTasksBk | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrAllTasksBk.Status -match "Failed") {
         $allTasksBkHead = $subHead01err
       } ElseIf ($arrAllTasksBk.Status -match "Warning") {
@@ -1982,7 +1729,7 @@ If ($showAllTasksBk) {
         $allTasksBkHead = $subHead01suc
       } Else {
         $allTasksBkHead = $subHead01
-      }      
+      }
       $bodyAllTasksBk = $allTasksBkHead + "Backup Tasks" + $subHead02 + $bodyAllTasksBk
     }
   }
@@ -1992,14 +1739,14 @@ If ($showAllTasksBk) {
 $bodyTasksRunningBk = $null
 If ($showRunningTasksBk) {
   If ($runningTasksBk.count -gt 0) {
-    $bodyTasksRunningBk = $runningTasksBk | Select @{Name="VM Name"; Expression = {$_.Name}},
+    $bodyTasksRunningBk = $runningTasksBk | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Info.Progress.StartTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodyTasksRunningBk = $subHead01 + "Running Backup Tasks" + $subHead02 + $bodyTasksRunningBk
   }
 }
@@ -2009,18 +1756,18 @@ $bodyTaskWFBk = $null
 If ($showTaskWFBk) {
   If ($wfTasksBk.count -gt 0) {
     If ($showDetailedBk) {
-      $arrTaskWFBk = $wfTasksBk | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrTaskWFBk = $wfTasksBk | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyTaskWFBk = $arrTaskWFBk | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyTaskWFBk = $arrTaskWFBk | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrTaskWFBk.Status -match "Failed") {
         $taskWFBkHead = $subHead01err
       } ElseIf ($arrTaskWFBk.Status -match "Warning") {
@@ -2029,16 +1776,16 @@ If ($showTaskWFBk) {
         $taskWFBkHead = $subHead01suc
       } Else {
         $taskWFBkHead = $subHead01
-      }      
+      }
       $bodyTaskWFBk = $taskWFBkHead + "Backup Tasks with Warnings or Failures" + $subHead02 + $bodyTaskWFBk
     } Else {
-      $arrTaskWFBk = $wfTasksBk | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrTaskWFBk = $wfTasksBk | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyTaskWFBk = $arrTaskWFBk | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyTaskWFBk = $arrTaskWFBk | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrTaskWFBk.Status -match "Failed") {
         $taskWFBkHead = $subHead01err
       } ElseIf ($arrTaskWFBk.Status -match "Warning") {
@@ -2047,7 +1794,7 @@ If ($showTaskWFBk) {
         $taskWFBkHead = $subHead01suc
       } Else {
         $taskWFBkHead = $subHead01
-      }      
+      }
       $bodyTaskWFBk = $taskWFBkHead + "Backup Tasks with Warnings or Failures" + $subHead02 + $bodyTaskWFBk
     }
   }
@@ -2058,25 +1805,25 @@ $bodyTaskSuccBk = $null
 If ($showTaskSuccessBk) {
   If ($successTasksBk.count -gt 0) {
     If ($showDetailedBk) {
-      $bodyTaskSuccBk = $successTasksBk | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $bodyTaskSuccBk = $successTasksBk | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       $bodyTaskSuccBk = $subHead01suc + "Successful Backup Tasks" + $subHead02 + $bodyTaskSuccBk
     } Else {
-      $bodyTaskSuccBk = $successTasksBk | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $bodyTaskSuccBk = $successTasksBk | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       $bodyTaskSuccBk = $subHead01suc + "Successful Backup Tasks" + $subHead02 + $bodyTaskSuccBk
     }
   }
@@ -2086,11 +1833,11 @@ If ($showTaskSuccessBk) {
 $bodyRestoRunVM = $null
 If ($showRestoRunVM) {
   If ($($runningResto).count -gt 0) {
-    $bodyRestoRunVM = $runningResto | Sort CreationTime | Select @{Name="VM Name"; Expression = {$_.Info.VmDisplayName}},
-      @{Name="Restore Type"; Expression = {$_.JobTypeString}}, @{Name="Start Time"; Expression = {$_.CreationTime}},        
+    $bodyRestoRunVM = $runningResto | Sort-Object CreationTime | Select-Object @{Name="VM Name"; Expression = {$_.Info.VmDisplayName}},
+      @{Name="Restore Type"; Expression = {$_.JobTypeString}}, @{Name="Start Time"; Expression = {$_.CreationTime}},
       @{Name="Initiator"; Expression = {$_.Info.Initiator.Name}},
       @{Name="Reason"; Expression = {$_.Info.Reason}} | ConvertTo-HTML -Fragment
-    $bodyRestoRunVM = $subHead01 + "Running VM Restore Sessions" + $subHead02 + $bodyRestoRunVM 
+    $bodyRestoRunVM = $subHead01 + "Running VM Restore Sessions" + $subHead02 + $bodyRestoRunVM
   }
 }
 
@@ -2098,10 +1845,10 @@ If ($showRestoRunVM) {
 $bodyRestoreVM = $null
 If ($showRestoreVM) {
   If ($($completeResto).count -gt 0) {
-    $arrRestoreVM = $completeResto | Sort CreationTime | Select @{Name="VM Name"; Expression = {$_.Info.VmDisplayName}},
+    $arrRestoreVM = $completeResto | Sort-Object CreationTime | Select-Object @{Name="VM Name"; Expression = {$_.Info.VmDisplayName}},
       @{Name="Restore Type"; Expression = {$_.JobTypeString}},
-      @{Name="Start Time"; Expression = {$_.CreationTime}}, @{Name="Stop Time"; Expression = {$_.EndTime}},        
-      @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $_.EndTime)}},        
+      @{Name="Start Time"; Expression = {$_.CreationTime}}, @{Name="Stop Time"; Expression = {$_.EndTime}},
+      @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $_.EndTime)}},
       @{Name="Initiator"; Expression = {$_.Info.Initiator.Name}}, @{Name="Reason"; Expression = {$_.Info.Reason}},
       @{Name="Result"; Expression = {$_.Info.Result}}
     $bodyRestoreVM = $arrRestoreVM | ConvertTo-HTML -Fragment
@@ -2113,8 +1860,8 @@ If ($showRestoreVM) {
       $restoreVMHead = $subHead01suc
     } Else {
       $restoreVMHead = $subHead01
-    }    
-    $bodyRestoreVM = $restoreVMHead + "Completed VM Restore Sessions" + $subHead02 + $bodyRestoreVM 
+    }
+    $bodyRestoreVM = $restoreVMHead + "Completed VM Restore Sessions" + $subHead02 + $bodyRestoreVM
   }
 }
 
@@ -2137,7 +1884,7 @@ If ($showSummaryRp) {
   } Else {
     $total = "Total Sessions"
   }
-  $arrSummaryRp =  $vbrMasterObj | Select @{Name=$total; Expression = {$_.Sessions}},
+  $arrSummaryRp =  $vbrMasterObj | Select-Object @{Name=$total; Expression = {$_.Sessions}},
     @{Name="Read (GB)"; Expression = {$_.Read}}, @{Name="Transferred (GB)"; Expression = {$_.Transferred}},
     @{Name="Running"; Expression = {$_.Running}}, @{Name="Successful"; Expression = {$_.Successful}},
     @{Name="Warnings"; Expression = {$_.Warning}},
@@ -2161,32 +1908,32 @@ If ($showJobsRp) {
   If ($allJobsRp.count -gt 0) {
     $bodyJobsRp = @()
     Foreach($rpJob in $allJobsRp) {
-      $bodyJobsRp += $rpJob | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodyJobsRp += $rpJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Enabled"; Expression = {$_.Info.IsScheduleEnabled}},
         @{Name="Status"; Expression = {
           If ($rpJob.IsRunning) {
-            $currentSess = $runningSessionsRp | ?{$_.JobName -eq $rpJob.Name}
+            $currentSess = $runningSessionsRp | Where-Object {$_.JobName -eq $rpJob.Name}
             $csessPercent = $currentSess.Progress.Percents
             $csessSpeed = [Math]::Round($currentSess.Info.Progress.AvgSpeed/1MB,2)
             $cStatus = "$($csessPercent)% completed at $($csessSpeed) MB/s"
             $cStatus
           } Else {
             "Stopped"
-          }             
+          }
          }},
-        @{Name="Target"; Expression = {$(Get-VBRServer | Where {$_.Id -eq $rpJob.Info.TargetHostId}).Name}},
+        @{Name="Target"; Expression = {$(Get-VBRServer | Where-Object {$_.Id -eq $rpJob.Info.TargetHostId}).Name}},
         @{Name="Target Repo"; Expression = {
-          If ($($repoList | Where {$_.Id -eq $rpJob.Info.TargetRepositoryId}).Name) {$($repoList | Where {$_.Id -eq $rpJob.Info.TargetRepositoryId}).Name}
-          Else {$($repoListSo | Where {$_.Id -eq $rpJob.Info.TargetRepositoryId}).Name}}},
+          If ($($repoList | Where-Object {$_.Id -eq $rpJob.Info.TargetRepositoryId}).Name) {$($repoList | Where-Object {$_.Id -eq $rpJob.Info.TargetRepositoryId}).Name}
+          Else {$($repoListSo | Where-Object {$_.Id -eq $rpJob.Info.TargetRepositoryId}).Name}}},
         @{Name="Next Run"; Expression = {
           If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
           ElseIf ($_.Options.JobOptions.RunManually) {"<not scheduled>"}
           ElseIf ($_.ScheduleOptions.IsContinuous) {"<Continuous>"}
-          ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where {$_.Id -eq $rpJob.Info.ParentScheduleId}).Name + "]"}
+          ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where-Object {$_.Id -eq $rpJob.Info.ParentScheduleId}).Name + "]"}
           Else {$_.ScheduleOptions.NextRun}}},
         @{Name="Last Result"; Expression = {If ($_.Info.LatestStatus -eq "None"){""}Else{$_.Info.LatestStatus}}}
     }
-    $bodyJobsRp = $bodyJobsRp | Sort "Next Run" | ConvertTo-HTML -Fragment
+    $bodyJobsRp = $bodyJobsRp | Sort-Object "Next Run" | ConvertTo-HTML -Fragment
     $bodyJobsRp = $subHead01 + "Replication Job Status" + $subHead02 + $bodyJobsRp
   }
 }
@@ -2196,16 +1943,16 @@ $bodyAllSessRp = $null
 If ($showAllSessRp) {
   If ($sessListRp.count -gt 0) {
     If ($showDetailedRp) {
-      $arrAllSessRp = $sessListRp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrAllSessRp = $sessListRp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="State"; Expression = {$_.State}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Info.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Info.Progress.ReadSize/1GB,2)}},
-        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},                    
+        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},
         @{Name="Dedupe"; Expression = {
           If ($_.Progress.ReadSize -eq 0) {0}
           Else {([string][Math]::Round($_.BackupStats.GetDedupeX(),1)) +"x"}}},
@@ -2222,10 +1969,10 @@ If ($showAllSessRp) {
         $allSessRpHead = $subHead01suc
       } Else {
         $allSessRpHead = $subHead01
-      }      
+      }
       $bodyAllSessRp = $allSessRpHead + "Replication Sessions" + $subHead02 + $bodyAllSessRp
     } Else {
-      $arrAllSessRp = $sessListRp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrAllSessRp = $sessListRp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="State"; Expression = {$_.State}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
@@ -2250,7 +1997,7 @@ If ($showAllSessRp) {
 $bodyRunningRp = $null
 If ($showRunningRp) {
   If ($runningSessionsRp.count -gt 0) {
-    $bodyRunningRp = $runningSessionsRp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+    $bodyRunningRp = $runningSessionsRp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
       @{Name="Start Time"; Expression = {$_.CreationTime}},
       @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
       @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Info.Progress.AvgSpeed/1MB,2)}},
@@ -2259,7 +2006,7 @@ If ($showRunningRp) {
       @{Name="% Complete"; Expression = {$_.Progress.Percents}} | ConvertTo-HTML -Fragment
     $bodyRunningRp = $subHead01 + "Running Replication Jobs" + $subHead02 + $bodyRunningRp
   }
-} 
+}
 
 # Get Replication Sessions with Warnings or Failures
 $bodySessWFRp = $null
@@ -2272,15 +2019,15 @@ If ($showWarnFailRp) {
       $headerWF = "Replication Sessions with Warnings or Failures"
     }
     If ($showDetailedRp) {
-      $arrSessWFRp = $sessWF | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrSessWFRp = $sessWF | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Info.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Info.Progress.ReadSize/1GB,2)}},
-        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},                    
+        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},
         @{Name="Dedupe"; Expression = {
           If ($_.Progress.ReadSize -eq 0) {0}
           Else {([string][Math]::Round($_.BackupStats.GetDedupeX(),1)) +"x"}}},
@@ -2288,7 +2035,7 @@ If ($showWarnFailRp) {
           If ($_.Progress.ReadSize -eq 0) {0}
           Else {([string][Math]::Round($_.BackupStats.GetCompressX(),1)) +"x"}}},
         @{Name="Details"; Expression = {
-          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | %{If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
+          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | ForEach-Object {If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
           Else {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}, Result
       $bodySessWFRp = $arrSessWFRp | ConvertTo-HTML -Fragment
       If ($arrSessWFRp.Result -match "Failed") {
@@ -2302,12 +2049,12 @@ If ($showWarnFailRp) {
       }
       $bodySessWFRp = $sessWFRpHead + $headerWF + $subHead02 + $bodySessWFRp
     } Else {
-      $arrSessWFRp = $sessWF | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrSessWFRp = $sessWF | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {
-          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | %{If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
+          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | ForEach-Object {If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
           Else {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}, Result
       $bodySessWFRp = $arrSessWFRp | ConvertTo-HTML -Fragment
       If ($arrSessWFRp.Result -match "Failed") {
@@ -2334,7 +2081,7 @@ If ($showSuccessRp) {
       $headerSucc = "Successful Replication Sessions"
     }
     If ($showDetailedRp) {
-      $bodySessSuccRp = $successSessionsRp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessSuccRp = $successSessionsRp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
@@ -2352,7 +2099,7 @@ If ($showSuccessRp) {
         Result  | ConvertTo-HTML -Fragment
       $bodySessSuccRp = $subHead01suc + $headerSucc + $subHead02 + $bodySessSuccRp
     } Else {
-      $bodySessSuccRp = $successSessionsRp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessSuccRp = $successSessionsRp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
@@ -2366,28 +2113,28 @@ If ($showSuccessRp) {
 # Gather all Replication Tasks from Sessions within time frame
 $taskListRp = @()
 $taskListRp += $sessListRp | Get-VBRTaskSession
-$successTasksRp = @($taskListRp | ?{$_.Status -eq "Success"})
-$wfTasksRp = @($taskListRp | ?{$_.Status -match "Warning|Failed"})
+$successTasksRp = @($taskListRp | Where-Object {$_.Status -eq "Success"})
+$wfTasksRp = @($taskListRp | Where-Object {$_.Status -match "Warning|Failed"})
 $runningTasksRp = @()
-$runningTasksRp += $runningSessionsRp | Get-VBRTaskSession | ?{$_.Status -match "Pending|InProgress"}
+$runningTasksRp += $runningSessionsRp | Get-VBRTaskSession | Where-Object {$_.Status -match "Pending|InProgress"}
 
 # Get Replication Tasks
 $bodyAllTasksRp = $null
 If ($showAllTasksRp) {
   If ($taskListRp.count -gt 0) {
     If ($showDetailedRp) {
-      $arrAllTasksRp = $taskListRp | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrAllTasksRp = $taskListRp | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {If ($_.Progress.StopTimeLocal -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.Progress.StopTimeLocal}}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyAllTasksRp = $arrAllTasksRp | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyAllTasksRp = $arrAllTasksRp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrAllTasksRp.Status -match "Failed") {
         $allTasksRpHead = $subHead01err
       } ElseIf ($arrAllTasksRp.Status -match "Warning") {
@@ -2399,13 +2146,13 @@ If ($showAllTasksRp) {
       }
       $bodyAllTasksRp = $allTasksRpHead + "Replication Tasks" + $subHead02 + $bodyAllTasksRp
     } Else {
-      $arrAllTasksRp = $taskListRp | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrAllTasksRp = $taskListRp | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {If ($_.Progress.StopTimeLocal -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.Progress.StopTimeLocal}}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyAllTasksRp = $arrAllTasksRp | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyAllTasksRp = $arrAllTasksRp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrAllTasksRp.Status -match "Failed") {
         $allTasksRpHead = $subHead01err
       } ElseIf ($arrAllTasksRp.Status -match "Warning") {
@@ -2424,14 +2171,14 @@ If ($showAllTasksRp) {
 $bodyTasksRunningRp = $null
 If ($showRunningTasksRp) {
   If ($runningTasksRp.count -gt 0) {
-    $bodyTasksRunningRp = $runningTasksRp | Select @{Name="VM Name"; Expression = {$_.Name}},
+    $bodyTasksRunningRp = $runningTasksRp | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Info.Progress.StartTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodyTasksRunningRp = $subHead01 + "Running Replication Tasks" + $subHead02 + $bodyTasksRunningRp
   }
 }
@@ -2441,18 +2188,18 @@ $bodyTaskWFRp = $null
 If ($showTaskWFRp) {
   If ($wfTasksRp.count -gt 0) {
     If ($showDetailedRp) {
-      $arrTaskWFRp = $wfTasksRp | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrTaskWFRp = $wfTasksRp | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyTaskWFRp = $arrTaskWFRp | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyTaskWFRp = $arrTaskWFRp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrTaskWFRp.Status -match "Failed") {
         $taskWFRpHead = $subHead01err
       } ElseIf ($arrTaskWFRp.Status -match "Warning") {
@@ -2464,13 +2211,13 @@ If ($showTaskWFRp) {
       }
       $bodyTaskWFRp = $taskWFRpHead + "Replication Tasks with Warnings or Failures" + $subHead02 + $bodyTaskWFRp
     } Else {
-      $arrTaskWFRp = $wfTasksRp | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrTaskWFRp = $wfTasksRp | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyTaskWFRp = $arrTaskWFRp | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyTaskWFRp = $arrTaskWFRp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrTaskWFRp.Status -match "Failed") {
         $taskWFRpHead = $subHead01err
       } ElseIf ($arrTaskWFRp.Status -match "Warning") {
@@ -2490,25 +2237,25 @@ $bodyTaskSuccRp = $null
 If ($showTaskSuccessRp) {
   If ($successTasksRp.count -gt 0) {
     If ($showDetailedRp) {
-      $bodyTaskSuccRp = $successTasksRp | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $bodyTaskSuccRp = $successTasksRp | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       $bodyTaskSuccRp = $subHead01suc + "Successful Replication Tasks" + $subHead02 + $bodyTaskSuccRp
     } Else {
-      $bodyTaskSuccRp = $successTasksRp | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $bodyTaskSuccRp = $successTasksRp | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       $bodyTaskSuccRp = $subHead01suc + "Successful Replication Tasks" + $subHead02 + $bodyTaskSuccRp
     }
   }
@@ -2533,7 +2280,7 @@ If ($showSummaryBc) {
   } Else {
     $total = "Total Sessions"
   }
-  $arrSummaryBc =  $vbrMasterObj | Select @{Name=$total; Expression = {$_.Sessions}},
+  $arrSummaryBc =  $vbrMasterObj | Select-Object @{Name=$total; Expression = {$_.Sessions}},
     @{Name="Read (GB)"; Expression = {$_.Read}}, @{Name="Transferred (GB)"; Expression = {$_.Transferred}},
     @{Name="Idle"; Expression = {$_.Idle}},
     @{Name="Working"; Expression = {$_.Working}}, @{Name="Successful"; Expression = {$_.Successful}},
@@ -2557,9 +2304,9 @@ If ($showJobsBc) {
   If ($allJobsBc.count -gt 0) {
     $bodyJobsBc = @()
     Foreach($BcJob in $allJobsBc) {
-      $bodyJobsBc += $BcJob | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodyJobsBc += $BcJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Enabled"; Expression = {$_.Info.IsScheduleEnabled}},
-        @{Name="Type"; Expression = {$_.TypeToString}},             
+        @{Name="Type"; Expression = {$_.TypeToString}},
         @{Name="Status"; Expression = {
           If ($BcJob.IsRunning) {
             $currentSess = $BcJob.FindLastSession()
@@ -2573,20 +2320,20 @@ If ($showJobsBc) {
             }
           } Else {
             "Stopped"
-          }             
+          }
         }},
         @{Name="Target Repo"; Expression = {
-          If ($($repoList | Where {$_.Id -eq $BcJob.Info.TargetRepositoryId}).Name) {$($repoList | Where {$_.Id -eq $BcJob.Info.TargetRepositoryId}).Name}
-          Else {$($repoListSo | Where {$_.Id -eq $BcJob.Info.TargetRepositoryId}).Name}}},
+          If ($($repoList | Where-Object {$_.Id -eq $BcJob.Info.TargetRepositoryId}).Name) {$($repoList | Where-Object {$_.Id -eq $BcJob.Info.TargetRepositoryId}).Name}
+          Else {$($repoListSo | Where-Object {$_.Id -eq $BcJob.Info.TargetRepositoryId}).Name}}},
         @{Name="Next Run"; Expression = {
           If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
           ElseIf ($_.Options.JobOptions.RunManually) {"<not scheduled>"}
           ElseIf ($_.ScheduleOptions.IsContinious) {"<Continious>"}
-          ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where {$_.Id -eq $BcJob.Info.ParentScheduleId}).Name + "]"}
+          ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where-Object {$_.Id -eq $BcJob.Info.ParentScheduleId}).Name + "]"}
           Else {$_.ScheduleOptions.NextRun}}},
         @{Name="Last Result"; Expression = {If ($_.Info.LatestStatus -eq "None"){""}Else{$_.Info.LatestStatus}}}
     }
-    $bodyJobsBc = $bodyJobsBc | Sort "Next Run", "Job Name" | ConvertTo-HTML -Fragment
+    $bodyJobsBc = $bodyJobsBc | Sort-Object "Next Run", "Job Name" | ConvertTo-HTML -Fragment
     $bodyJobsBc = $subHead01 + "Backup Copy Job Status" + $subHead02 + $bodyJobsBc
   }
 }
@@ -2595,7 +2342,7 @@ If ($showJobsBc) {
 $bodyJobSizeBc = $null
 If ($showBackupSizeBc) {
   If ($backupsBc.count -gt 0) {
-    $bodyJobSizeBc = Get-BackupSize -backups $backupsBc | Sort JobName | Select @{Name="Job Name"; Expression = {$_.JobName}},
+    $bodyJobSizeBc = Get-BackupSize -backups $backupsBc | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
       @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
@@ -2609,16 +2356,16 @@ $bodyAllSessBc = $null
 If ($showAllSessBc) {
   If ($sessListBc.count -gt 0) {
     If ($showDetailedBc) {
-      $arrAllSessBc = $sessListBc | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrAllSessBc = $sessListBc | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="State"; Expression = {$_.State}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Info.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Info.Progress.ReadSize/1GB,2)}},
-        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},                    
+        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},
         @{Name="Dedupe"; Expression = {
           If ($_.Progress.ReadSize -eq 0) {0}
           Else {([string][Math]::Round($_.BackupStats.GetDedupeX(),1)) +"x"}}},
@@ -2638,7 +2385,7 @@ If ($showAllSessBc) {
       }
       $bodyAllSessBc = $allSessBcHead + "Backup Copy Sessions" + $subHead02 + $bodyAllSessBc
     } Else {
-      $arrAllSessBc = $sessListBc | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrAllSessBc = $sessListBc | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="State"; Expression = {$_.State}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
@@ -2669,14 +2416,14 @@ If ($showIdleBc) {
       $headerIdle = "Idle Backup Copy Sessions"
     }
     If ($showDetailedBc) {
-      $bodySessIdleBc = $idleSessionsBc | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessIdleBc = $idleSessionsBc | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))}},                 
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Info.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Info.Progress.ReadSize/1GB,2)}},
-        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},                    
+        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},
         @{Name="Dedupe"; Expression = {
           If ($_.Progress.ReadSize -eq 0) {0}
           Else {([string][Math]::Round($_.BackupStats.GetDedupeX(),1)) +"x"}}},
@@ -2685,7 +2432,7 @@ If ($showIdleBc) {
           Else {([string][Math]::Round($_.BackupStats.GetCompressX(),1)) +"x"}}} | ConvertTo-HTML -Fragment
       $bodySessIdleBc = $subHead01 + $headerIdle + $subHead02 + $bodySessIdleBc
     } Else {
-      $bodySessIdleBc = $idleSessionsBc | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessIdleBc = $idleSessionsBc | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))}} | ConvertTo-HTML -Fragment
       $bodySessIdleBc = $subHead01 + $headerIdle + $subHead02 + $bodySessIdleBc
@@ -2697,7 +2444,7 @@ If ($showIdleBc) {
 $bodyRunningBc = $null
 If ($showRunningBc) {
   If ($workingSessionsBc.count -gt 0) {
-    $bodyRunningBc = $workingSessionsBc | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+    $bodyRunningBc = $workingSessionsBc | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
       @{Name="Start Time"; Expression = {$_.CreationTime}},
       @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.Progress.StartTimeLocal $(Get-Date))}},
       @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
@@ -2719,15 +2466,15 @@ If ($showWarnFailBc) {
       $headerWF = "Backup Copy Sessions with Warnings or Failures"
     }
     If ($showDetailedBc) {
-      $arrSessWFBc = $sessWF | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrSessWFBc = $sessWF | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Info.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Info.Progress.ReadSize/1GB,2)}},
-        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},                    
+        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},
         @{Name="Dedupe"; Expression = {
           If ($_.Progress.ReadSize -eq 0) {0}
           Else {([string][Math]::Round($_.BackupStats.GetDedupeX(),1)) +"x"}}},
@@ -2735,7 +2482,7 @@ If ($showWarnFailBc) {
           If ($_.Progress.ReadSize -eq 0) {0}
           Else {([string][Math]::Round($_.BackupStats.GetCompressX(),1)) +"x"}}},
         @{Name="Details"; Expression = {
-          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | %{If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
+          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | ForEach-Object {If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
           Else {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}, Result
       $bodySessWFBc = $arrSessWFBc | ConvertTo-HTML -Fragment
       If ($arrSessWFBc.Result -match "Failed") {
@@ -2749,12 +2496,12 @@ If ($showWarnFailBc) {
       }
       $bodySessWFBc = $sessWFBcHead + $headerWF + $subHead02 + $bodySessWFBc
     } Else {
-      $arrSessWFBc = $sessWF | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrSessWFBc = $sessWF | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {
-          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | %{If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
+          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | ForEach-Object {If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
           Else {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}, Result
       $bodySessWFBc = $arrSessWFBc | ConvertTo-HTML -Fragment
       If ($arrSessWFBc.Result -match "Failed") {
@@ -2781,7 +2528,7 @@ If ($showSuccessBc) {
       $headerSucc = "Successful Backup Copy Sessions"
     }
     If ($showDetailedBc) {
-      $bodySessSuccBc = $successSessionsBc | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessSuccBc = $successSessionsBc | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
@@ -2799,7 +2546,7 @@ If ($showSuccessBc) {
         Result  | ConvertTo-HTML -Fragment
       $bodySessSuccBc = $subHead01suc + $headerSucc + $subHead02 + $bodySessSuccBc
     } Else {
-      $bodySessSuccBc = $successSessionsBc | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessSuccBc = $successSessionsBc | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
@@ -2813,28 +2560,28 @@ If ($showSuccessBc) {
 # Gather all Backup Copy Tasks from Sessions within time frame
 $taskListBc = @()
 $taskListBc += $sessListBc | Get-VBRTaskSession
-$successTasksBc = @($taskListBc | ?{$_.Status -eq "Success"})
-$wfTasksBc = @($taskListBc | ?{$_.Status -match "Warning|Failed"})
-$pendingTasksBc = @($taskListBc | ?{$_.Status -eq "Pending"})
-$runningTasksBc = @($taskListBc | ?{$_.Status -eq "InProgress"})
+$successTasksBc = @($taskListBc | Where-Object {$_.Status -eq "Success"})
+$wfTasksBc = @($taskListBc | Where-Object {$_.Status -match "Warning|Failed"})
+$pendingTasksBc = @($taskListBc | Where-Object {$_.Status -eq "Pending"})
+$runningTasksBc = @($taskListBc | Where-Object {$_.Status -eq "InProgress"})
 
 # Get All Backup Copy Tasks
 $bodyAllTasksBc = $null
 If ($showAllTasksBc) {
   If ($taskListBc.count -gt 0) {
     If ($showDetailedBc) {
-      $arrAllTasksBc = $taskListBc | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrAllTasksBc = $taskListBc | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {If ($_.Progress.StopTimeLocal -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.Progress.StopTimeLocal}}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyAllTasksBc = $arrAllTasksBc | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyAllTasksBc = $arrAllTasksBc | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrAllTasksBc.Status -match "Failed") {
         $allTasksBcHead = $subHead01err
       } ElseIf ($arrAllTasksBc.Status -match "Warning") {
@@ -2846,13 +2593,13 @@ If ($showAllTasksBc) {
       }
       $bodyAllTasksBc = $allTasksBcHead + "Backup Copy Tasks" + $subHead02 + $bodyAllTasksBc
     } Else {
-      $arrAllTasksBc = $taskListBc | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrAllTasksBc = $taskListBc | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {If ($_.Progress.StopTimeLocal -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.Progress.StopTimeLocal}}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyAllTasksBc = $arrAllTasksBc | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyAllTasksBc = $arrAllTasksBc | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrAllTasksBc.Status -match "Failed") {
         $allTasksBcHead = $subHead01err
       } ElseIf ($arrAllTasksBc.Status -match "Warning") {
@@ -2871,14 +2618,14 @@ If ($showAllTasksBc) {
 $bodyTasksPendingBc = $null
 If ($showPendingTasksBc) {
   If ($pendingTasksBc.count -gt 0) {
-    $bodyTasksPendingBc = $pendingTasksBc | Select @{Name="VM Name"; Expression = {$_.Name}},
+    $bodyTasksPendingBc = $pendingTasksBc | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Info.Progress.StartTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodyTasksPendingBc = $subHead01 + "Pending Backup Copy Tasks" + $subHead02 + $bodyTasksPendingBc
   }
 }
@@ -2887,14 +2634,14 @@ If ($showPendingTasksBc) {
 $bodyTasksRunningBc = $null
 If ($showRunningTasksBc) {
   If ($runningTasksBc.count -gt 0) {
-    $bodyTasksRunningBc = $runningTasksBc | Select @{Name="VM Name"; Expression = {$_.Name}},
+    $bodyTasksRunningBc = $runningTasksBc | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Info.Progress.StartTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodyTasksRunningBc = $subHead01 + "Working Backup Copy Tasks" + $subHead02 + $bodyTasksRunningBc
   }
 }
@@ -2904,18 +2651,18 @@ $bodyTaskWFBc = $null
 If ($showTaskWFBc) {
   If ($wfTasksBc.count -gt 0) {
     If ($showDetailedBc) {
-      $arrTaskWFBc = $wfTasksBc | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrTaskWFBc = $wfTasksBc | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyTaskWFBc = $arrTaskWFBc | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyTaskWFBc = $arrTaskWFBc | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrTaskWFBc.Status -match "Failed") {
         $taskWFBcHead = $subHead01err
       } ElseIf ($arrTaskWFBc.Status -match "Warning") {
@@ -2927,13 +2674,13 @@ If ($showTaskWFBc) {
       }
       $bodyTaskWFBc = $taskWFBcHead + "Backup Copy Tasks with Warnings or Failures" + $subHead02 + $bodyTaskWFBc
     } Else {
-      $arrTaskWFBc = $wfTasksBc | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $arrTaskWFBc = $wfTasksBc | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyTaskWFBc = $arrTaskWFBc | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyTaskWFBc = $arrTaskWFBc | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrTaskWFBc.Status -match "Failed") {
         $taskWFBcHead = $subHead01err
       } ElseIf ($arrTaskWFBc.Status -match "Warning") {
@@ -2953,7 +2700,7 @@ $bodyTaskSuccBc = $null
 If ($showTaskSuccessBc) {
   If ($successTasksBc.count -gt 0) {
     If ($showDetailedBc) {
-      $bodyTaskSuccBc = $successTasksBc | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $bodyTaskSuccBc = $successTasksBc | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {
@@ -2969,10 +2716,10 @@ If ($showTaskSuccessBc) {
         @{Name="Processed (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedUsedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       $bodyTaskSuccBc = $subHead01suc + "Successful Backup Copy Tasks" + $subHead02 + $bodyTaskSuccBc
     } Else {
-      $bodyTaskSuccBc = $successTasksBc | Select @{Name="VM Name"; Expression = {$_.Name}},
+      $bodyTaskSuccBc = $successTasksBc | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {
@@ -2983,7 +2730,7 @@ If ($showTaskSuccessBc) {
           If ($_.Progress.StopTimeLocal -eq "1/1/1900 12:00:00 AM") {"-"}
           Else {Get-Duration -ts $_.Progress.Duration}
         }},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       $bodyTaskSuccBc = $subHead01suc + "Successful Backup Copy Tasks" + $subHead02 + $bodyTaskSuccBc
     }
   }
@@ -3009,7 +2756,7 @@ If ($showSummaryTp) {
   } Else {
     $total = "Total Sessions"
   }
-  $arrSummaryTp =  $vbrMasterObj | Select @{Name=$total; Expression = {$_.Sessions}},
+  $arrSummaryTp =  $vbrMasterObj | Select-Object @{Name=$total; Expression = {$_.Sessions}},
     @{Name="Read (GB)"; Expression = {$_.Read}}, @{Name="Transferred (GB)"; Expression = {$_.Transferred}},
     @{Name="Idle"; Expression = {$_.Idle}}, @{Name="Waiting"; Expression = {$_.Waiting}},
     @{Name="Working"; Expression = {$_.Working}}, @{Name="Successful"; Expression = {$_.Successful}},
@@ -3033,17 +2780,17 @@ If ($showJobsTp) {
   If ($allJobsTp.count -gt 0) {
     $bodyJobsTp = @()
     Foreach($tpJob in $allJobsTp) {
-      $bodyJobsTp += $tpJob | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodyJobsTp += $tpJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Job Type"; Expression = {$_.Type}},@{Name="Media Pool"; Expression = {$_.Target}},
         @{Name="Status"; Expression = {$_.LastState}},
         @{Name="Next Run"; Expression = {
           If ($_.ScheduleOptions.Type -eq "AfterNewBackup") {"<Continuous>"}
-          ElseIf ($_.ScheduleOptions.Type -eq "AfterJob") {"After [" + $(($allJobs + $allJobsTp) | Where {$_.Id -eq $tpJob.ScheduleOptions.JobId}).Name + "]"}
+          ElseIf ($_.ScheduleOptions.Type -eq "AfterJob") {"After [" + $(($allJobs + $allJobsTp) | Where-Object {$_.Id -eq $tpJob.ScheduleOptions.JobId}).Name + "]"}
           ElseIf ($_.NextRun) {$_.NextRun}
           Else {"<not scheduled>"}}},
         @{Name="Last Result"; Expression = {If ($_.LastResult -eq "None"){""}Else{$_.LastResult}}}
     }
-    $bodyJobsTp = $bodyJobsTp | Sort "Next Run", "Job Name" | ConvertTo-HTML -Fragment
+    $bodyJobsTp = $bodyJobsTp | Sort-Object "Next Run", "Job Name" | ConvertTo-HTML -Fragment
     $bodyJobsTp = $subHead01 + "Tape Backup Job Status" + $subHead02 + $bodyJobsTp
   }
 }
@@ -3053,15 +2800,15 @@ $bodyAllSessTp = $null
 If ($showAllSessTp) {
   If ($sessListTp.count -gt 0) {
     If ($showDetailedTp) {
-      $arrAllSessTp = $sessListTp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrAllSessTp = $sessListTp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="State"; Expression = {$_.State}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Info.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Info.Progress.ReadSize/1GB,2)}},
-        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},                    
+        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Result
       $bodyAllSessTp = $arrAllSessTp | ConvertTo-HTML -Fragment
       If ($arrAllSessTp.Result -match "Failed") {
@@ -3072,10 +2819,10 @@ If ($showAllSessTp) {
         $allSessTpHead = $subHead01suc
       } Else {
         $allSessTpHead = $subHead01
-      }      
+      }
       $bodyAllSessTp = $allSessTpHead + "Tape Backup Sessions" + $subHead02 + $bodyAllSessTp
     } Else {
-      $arrAllSessTp = $sessListTp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrAllSessTp = $sessListTp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="State"; Expression = {$_.State}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
@@ -3090,10 +2837,10 @@ If ($showAllSessTp) {
         $allSessTpHead = $subHead01suc
       } Else {
         $allSessTpHead = $subHead01
-      }      
+      }
       $bodyAllSessTp = $allSessTpHead + "Tape Backup Sessions" + $subHead02 + $bodyAllSessTp
     }
-  
+
     # Due to issue with getting details on tape sessions, we may need to get session info again :-(
     If (($showWaitingTp -or $showIdleTp -or $showRunningTp -or $showWarnFailTp -or $showSuccessTp) -and $showDetailedTp) {
       # Get all Tape Backup Sessions
@@ -3103,31 +2850,31 @@ If ($showAllSessTp) {
         $allSessTp += $tpSessions
       }
       # Gather all Tape Backup Sessions within timeframe
-      $sessListTp = @($allSessTp | ?{$_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Idle"})
-      If ($tapeJob -ne $null -and $tapeJob -ne "") {
+      $sessListTp = @($allSessTp | Where-Object {$_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Idle"})
+      If ($null -ne $tapeJob -and $tapeJob -ne "") {
         $allJobsTpTmp = @()
         $sessListTpTmp = @()
         Foreach ($tpJob in $tapeJob) {
-          $allJobsTpTmp += $allJobsTp | ?{$_.Name -like $tpJob}
-          $sessListTpTmp += $sessListTp | ?{$_.JobName -like $tpJob}
+          $allJobsTpTmp += $allJobsTp | Where-Object {$_.Name -like $tpJob}
+          $sessListTpTmp += $sessListTp | Where-Object {$_.JobName -like $tpJob}
         }
-        $allJobsTp = $allJobsTpTmp | sort Id -Unique
-        $sessListTp = $sessListTpTmp | sort Id -Unique
+        $allJobsTp = $allJobsTpTmp | Sort-Object Id -Unique
+        $sessListTp = $sessListTpTmp | Sort-Object Id -Unique
       }
       If ($onlyLastTp) {
         $tempSessListTp = $sessListTp
         $sessListTp = @()
         Foreach($job in $allJobsTp) {
-          $sessListTp += $tempSessListTp | ?{$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
+          $sessListTp += $tempSessListTp | Where-Object {$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
         }
       }
       # Get Tape Backup Session information
-      $idleSessionsTp = @($sessListTp | ?{$_.State -eq "Idle"})
-      $successSessionsTp = @($sessListTp | ?{$_.Result -eq "Success"})
-      $warningSessionsTp = @($sessListTp | ?{$_.Result -eq "Warning"})
-      $failsSessionsTp = @($sessListTp | ?{$_.Result -eq "Failed"})
-      $workingSessionsTp = @($sessListTp | ?{$_.State -eq "Working"})
-      $waitingSessionsTp = @($sessListTp | ?{$_.State -eq "WaitingTape"})
+      $idleSessionsTp = @($sessListTp | Where-Object {$_.State -eq "Idle"})
+      $successSessionsTp = @($sessListTp | Where-Object {$_.Result -eq "Success"})
+      $warningSessionsTp = @($sessListTp | Where-Object {$_.Result -eq "Warning"})
+      $failsSessionsTp = @($sessListTp | Where-Object {$_.Result -eq "Failed"})
+      $workingSessionsTp = @($sessListTp | Where-Object {$_.State -eq "Working"})
+      $waitingSessionsTp = @($sessListTp | Where-Object {$_.State -eq "WaitingTape"})
     }
   }
 }
@@ -3136,7 +2883,7 @@ If ($showAllSessTp) {
 $bodyWaitingTp = $null
 If ($showWaitingTp) {
   If ($waitingSessionsTp.count -gt 0) {
-    $bodyWaitingTp = $waitingSessionsTp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+    $bodyWaitingTp = $waitingSessionsTp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
       @{Name="Start Time"; Expression = {$_.CreationTime}},
       @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.Progress.StartTimeLocal $(Get-Date))}},
       @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
@@ -3157,16 +2904,16 @@ If ($showIdleTp) {
       $headerIdle = "Idle Tape Backup Sessions"
     }
     If ($showDetailedTp) {
-      $bodySessIdleTp = $idleSessionsTp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessIdleTp = $idleSessionsTp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))}},                 
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Info.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Info.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}} | ConvertTo-HTML -Fragment
       $bodySessIdleTp = $subHead01 + $headerIdle + $subHead02 + $bodySessIdleTp
     } Else {
-      $bodySessIdleTp = $idleSessionsTp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessIdleTp = $idleSessionsTp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))}} | ConvertTo-HTML -Fragment
       $bodySessIdleTp = $subHead01 + $headerIdle + $subHead02 + $bodySessIdleTp
@@ -3178,7 +2925,7 @@ If ($showIdleTp) {
 $bodyRunningTp = $null
 If ($showRunningTp) {
   If ($workingSessionsTp.count -gt 0) {
-    $bodyRunningTp = $workingSessionsTp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+    $bodyRunningTp = $workingSessionsTp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
       @{Name="Start Time"; Expression = {$_.CreationTime}},
       @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.Progress.StartTimeLocal $(Get-Date))}},
       @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
@@ -3200,16 +2947,16 @@ If ($showWarnFailTp) {
       $headerWF = "Tape Backup Sessions with Warnings or Failures"
     }
     If ($showDetailedTp) {
-      $arrSessWFTp = $sessWF | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrSessWFTp = $sessWF | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Info.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Info.Progress.ProcessedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Info.Progress.ReadSize/1GB,2)}},
-        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},                    
+        @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {
-          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | %{If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
+          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | ForEach-Object {If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
           Else {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}, Result
       $bodySessWFTp =  $arrSessWFTp | ConvertTo-HTML -Fragment
       If ($arrSessWFTp.Result -match "Failed") {
@@ -3223,12 +2970,12 @@ If ($showWarnFailTp) {
       }
       $bodySessWFTp = $sessWFTpHead + $headerWF + $subHead02 + $bodySessWFTp
     } Else {
-      $arrSessWFTp = $sessWF | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $arrSessWFTp = $sessWF | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {
-          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | %{If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
+          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | ForEach-Object {If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
           Else {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}, Result
       $bodySessWFTp =  $arrSessWFTp | ConvertTo-HTML -Fragment
       If ($arrSessWFTp.Result -match "Failed") {
@@ -3255,7 +3002,7 @@ If ($showSuccessTp) {
       $headerSucc = "Successful Tape Backup Sessions"
     }
     If ($showDetailedTp) {
-      $bodySessSuccTp = $successSessionsTp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessSuccTp = $successSessionsTp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
@@ -3264,17 +3011,17 @@ If ($showSuccessTp) {
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Info.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Info.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {
-          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | %{If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
+          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | ForEach-Object {If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
           Else {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}},
         Result  | ConvertTo-HTML -Fragment
       $bodySessSuccTp = $subHead01suc + $headerSucc + $subHead02 + $bodySessSuccTp
     } Else {
-      $bodySessSuccTp = $successSessionsTp | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodySessSuccTp = $successSessionsTp | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {
-          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | %{If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
+          If ($_.GetDetails() -eq ""){$_ | Get-VBRTaskSession | ForEach-Object {If ($_.GetDetails()){$_.Name + ": " + ($_.GetDetails()).Replace("<br />","ZZbrZZ")}}}
           Else {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}},
         Result | ConvertTo-HTML -Fragment
       $bodySessSuccTp = $subHead01suc + $headerSucc + $subHead02 + $bodySessSuccTp
@@ -3286,27 +3033,27 @@ If ($showSuccessTp) {
 # Gather all Tape Backup Tasks from Sessions within time frame
 $taskListTp = @()
 $taskListTp += $sessListTp | Get-VBRTaskSession
-$successTasksTp = @($taskListTp | ?{$_.Status -eq "Success"})
-$wfTasksTp = @($taskListTp | ?{$_.Status -match "Warning|Failed"})
-$pendingTasksTp = @($taskListTp | ?{$_.Status -eq "Pending"})
-$runningTasksTp = @($taskListTp | ?{$_.Status -eq "InProgress"})
+$successTasksTp = @($taskListTp | Where-Object {$_.Status -eq "Success"})
+$wfTasksTp = @($taskListTp | Where-Object {$_.Status -match "Warning|Failed"})
+$pendingTasksTp = @($taskListTp | Where-Object {$_.Status -eq "Pending"})
+$runningTasksTp = @($taskListTp | Where-Object {$_.Status -eq "InProgress"})
 
 # Get Tape Backup Tasks
 $bodyAllTasksTp = $null
 If ($showAllTasksTp) {
   If ($taskListTp.count -gt 0) {
     If ($showDetailedTp) {
-      $arrAllTasksTp = $taskListTp | Select @{Name="Name"; Expression = {$_.Name}},
+      $arrAllTasksTp = $taskListTp | Select-Object @{Name="Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {If ($_.Progress.StopTimeLocal -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.Progress.StopTimeLocal}}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyAllTasksTp = $arrAllTasksTp | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyAllTasksTp = $arrAllTasksTp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrAllTasksTp.Status -match "Failed") {
         $allTasksTpHead = $subHead01err
       } ElseIf ($arrAllTasksTp.Status -match "Warning") {
@@ -3315,16 +3062,16 @@ If ($showAllTasksTp) {
         $allTasksTpHead = $subHead01suc
       } Else {
         $allTasksTpHead = $subHead01
-      }  
+      }
       $bodyAllTasksTp = $allTasksTpHead + "Tape Backup Tasks" + $subHead02 + $bodyAllTasksTp
     } Else {
-      $arrAllTasksTp = $taskListTp | Select @{Name="Name"; Expression = {$_.Name}},
+      $arrAllTasksTp = $taskListTp | Select-Object @{Name="Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {If ($_.Progress.StopTimeLocal -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.Progress.StopTimeLocal}}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyAllTasksTp = $arrAllTasksTp | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyAllTasksTp = $arrAllTasksTp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrAllTasksTp.Status -match "Failed") {
         $allTasksTpHead = $subHead01err
       } ElseIf ($arrAllTasksTp.Status -match "Warning") {
@@ -3333,7 +3080,7 @@ If ($showAllTasksTp) {
         $allTasksTpHead = $subHead01suc
       } Else {
         $allTasksTpHead = $subHead01
-      }  
+      }
       $bodyAllTasksTp = $allTasksTpHead + "Tape Backup Tasks" + $subHead02 + $bodyAllTasksTp
     }
   }
@@ -3343,14 +3090,14 @@ If ($showAllTasksTp) {
 $bodyTasksPendingTp = $null
 If ($showPendingTasksTp) {
   If ($pendingTasksTp.count -gt 0) {
-    $bodyTasksPendingTp = $pendingTasksTp | Select @{Name="Name"; Expression = {$_.Name}},
+    $bodyTasksPendingTp = $pendingTasksTp | Select-Object @{Name="Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Info.Progress.StartTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodyTasksPendingTp = $subHead01 + "Pending Tape Backup Tasks" + $subHead02 + $bodyTasksPendingTp
   }
 }
@@ -3359,14 +3106,14 @@ If ($showPendingTasksTp) {
 $bodyTasksRunningTp = $null
 If ($showRunningTasksTp) {
   If ($runningTasksTp.count -gt 0) {
-    $bodyTasksRunningTp = $runningTasksTp | Select @{Name="Name"; Expression = {$_.Name}},
+    $bodyTasksRunningTp = $runningTasksTp | Select-Object @{Name="Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Info.Progress.StartTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodyTasksRunningTp = $subHead01 + "Working Tape Backup Tasks" + $subHead02 + $bodyTasksRunningTp
   }
 }
@@ -3376,17 +3123,17 @@ $bodyTaskWFTp = $null
 If ($showTaskWFTp) {
   If ($wfTasksTp.count -gt 0) {
     If ($showDetailedTp) {
-      $arrTaskWFTp = $wfTasksTp | Select @{Name="Name"; Expression = {$_.Name}},
+      $arrTaskWFTp = $wfTasksTp | Select-Object @{Name="Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
-        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},                    
+        @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Avg Speed (MB/s)"; Expression = {[Math]::Round($_.Progress.AvgSpeed/1MB,2)}},
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyTaskWFTp = $arrTaskWFTp | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyTaskWFTp = $arrTaskWFTp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrTaskWFTp.Status -match "Failed") {
         $taskWFTpHead = $subHead01err
       } ElseIf ($arrTaskWFTp.Status -match "Warning") {
@@ -3398,13 +3145,13 @@ If ($showTaskWFTp) {
       }
       $bodyTaskWFTp = $taskWFTpHead + "Tape Backup Tasks with Warnings or Failures" + $subHead02 + $bodyTaskWFTp
     } Else {
-      $arrTaskWFTp = $wfTasksTp | Select @{Name="Name"; Expression = {$_.Name}},
+      $arrTaskWFTp = $wfTasksTp | Select-Object @{Name="Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {$_.Progress.StopTimeLocal}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $_.Progress.Duration}},
         @{Name="Details"; Expression = {($_.GetDetails()).Replace("<br />","ZZbrZZ")}}, Status
-      $bodyTaskWFTp = $arrTaskWFTp | Sort "Start Time" | ConvertTo-HTML -Fragment
+      $bodyTaskWFTp = $arrTaskWFTp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       If ($arrTaskWFTp.Status -match "Failed") {
         $taskWFTpHead = $subHead01err
       } ElseIf ($arrTaskWFTp.Status -match "Warning") {
@@ -3424,7 +3171,7 @@ $bodyTaskSuccTp = $null
 If ($showTaskSuccessTp) {
   If ($successTasksTp.count -gt 0) {
     If ($showDetailedTp) {
-      $bodyTaskSuccTp = $successTasksTp | Select @{Name="Name"; Expression = {$_.Name}},
+      $bodyTaskSuccTp = $successTasksTp | Select-Object @{Name="Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {
@@ -3439,10 +3186,10 @@ If ($showTaskSuccessTp) {
         @{Name="Total (GB)"; Expression = {[Math]::Round($_.Progress.ProcessedSize/1GB,2)}},
         @{Name="Data Read (GB)"; Expression = {[Math]::Round($_.Progress.ReadSize/1GB,2)}},
         @{Name="Transferred (GB)"; Expression = {[Math]::Round($_.Progress.TransferedSize/1GB,2)}},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       $bodyTaskSuccTp = $subHead01suc + "Successful Tape Backup Tasks" + $subHead02 + $bodyTaskSuccTp
     } Else {
-      $bodyTaskSuccTp = $successTasksTp | Select @{Name="Name"; Expression = {$_.Name}},
+      $bodyTaskSuccTp = $successTasksTp | Select-Object @{Name="Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
         @{Name="Start Time"; Expression = {$_.Progress.StartTimeLocal}},
         @{Name="Stop Time"; Expression = {
@@ -3453,7 +3200,7 @@ If ($showTaskSuccessTp) {
           If ($_.Progress.StopTimeLocal -eq "1/1/1900 12:00:00 AM") {"-"}
           Else {Get-Duration -ts $_.Progress.Duration}
         }},
-        Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+        Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
       $bodyTaskSuccTp = $subHead01suc + "Successful Tape Backup Tasks" + $subHead02 + $bodyTaskSuccTp
     }
   }
@@ -3463,11 +3210,11 @@ If ($showTaskSuccessTp) {
 $bodyTapes = $null
 If ($showTapes) {
   $expTapes = @($mediaTapes)
-  if($expTapes.Count -gt 0) {
-    $expTapes = $expTapes | Select Name, Barcode,
+  If ($expTapes.Count -gt 0) {
+    $expTapes = $expTapes | Select-Object Name, Barcode,
     @{Name="Media Pool"; Expression = {
         $poolId = $_.MediaPoolId
-        ($mediaPools | ?{$_.Id -eq $poolId}).Name     
+        ($mediaPools | Where-Object {$_.Id -eq $poolId}).Name
     }},
     @{Name="Media Set"; Expression = {$_.MediaSet}}, @{Name="Sequence #"; Expression = {$_.SequenceNumber}},
     @{Name="Location"; Expression = {
@@ -3475,21 +3222,21 @@ If ($showTapes) {
           "None" {"Offline"}
           "Slot" {
             $lId = $_.LibraryId
-            $lName = $($mediaLibs | ?{$_.Id -eq $lId}).Name
+            $lName = $($mediaLibs | Where-Object {$_.Id -eq $lId}).Name
             [int]$slot = $_.SlotAddress + 1
             "{0} : {1} {2}" -f $lName,$_,$slot
           }
           "Drive" {
             $lId = $_.LibraryId
             $dId = $_.DriveId
-            $lName = $($mediaLibs | ?{$_.Id -eq $lId}).Name
-            $dName = $($mediaDrives | ?{$_.Id -eq $dId}).Name
+            $lName = $($mediaLibs | Where-Object {$_.Id -eq $lId}).Name
+            $dName = $($mediaDrives | Where-Object {$_.Id -eq $dId}).Name
             [int]$dNum = $_.Location.DriveAddress + 1
             "{0} : {1} {2} (Drive ID: {3})" -f $lName,$_,$dNum,$dName
           }
           "Vault" {
             $vId = $_.VaultId
-            $vName = $($mediaVaults | ?{$_.Id -eq $vId}).Name
+            $vName = $($mediaVaults | Where-Object {$_.Id -eq $vId}).Name
           "{0}: {1}" -f $_,$vName}
           default {"Lost in Space"}
         }
@@ -3503,7 +3250,7 @@ If ($showTapes) {
         } Else {
           $_.ExpirationDate
         }
-    }} | Sort Name | ConvertTo-HTML -Fragment
+    }} | Sort-Object Name | ConvertTo-HTML -Fragment
     $bodyTapes = $subHead01 + "All Tapes" + $subHead02 + $expTapes
   }
 }
@@ -3511,31 +3258,31 @@ If ($showTapes) {
 # Get all Tapes in each Custom Media Pool
 $bodyTpPool = $null
 If ($showTpMp) {
-  ForEach ($mp in ($mediaPools | ?{$_.Type -eq "Custom"} | Sort Name)) {
-    $expTapes = @($mediaTapes | where {($_.MediaPoolId -eq $mp.Id)})
-    if($expTapes.Count -gt 0) {
-      $expTapes = $expTapes | Select Name, Barcode,
+  ForEach ($mp in ($mediaPools | Where-Object {$_.Type -eq "Custom"} | Sort-Object Name)) {
+    $expTapes = @($mediaTapes | Where-Object {($_.MediaPoolId -eq $mp.Id)})
+    If ($expTapes.Count -gt 0) {
+      $expTapes = $expTapes | Select-Object Name, Barcode,
       @{Name="Media Set"; Expression = {$_.MediaSet}}, @{Name="Sequence #"; Expression = {$_.SequenceNumber}},
       @{Name="Location"; Expression = {
           switch ($_.Location) {
             "None" {"Offline"}
             "Slot" {
               $lId = $_.LibraryId
-              $lName = $($mediaLibs | ?{$_.Id -eq $lId}).Name
+              $lName = $($mediaLibs | Where-Object {$_.Id -eq $lId}).Name
               [int]$slot = $_.SlotAddress + 1
               "{0} : {1} {2}" -f $lName,$_,$slot
             }
             "Drive" {
               $lId = $_.LibraryId
               $dId = $_.DriveId
-              $lName = $($mediaLibs | ?{$_.Id -eq $lId}).Name
-              $dName = $($mediaDrives | ?{$_.Id -eq $dId}).Name
+              $lName = $($mediaLibs | Where-Object {$_.Id -eq $lId}).Name
+              $dName = $($mediaDrives | Where-Object {$_.Id -eq $dId}).Name
               [int]$dNum = $_.Location.DriveAddress + 1
               "{0} : {1} {2} (Drive ID: {3})" -f $lName,$_,$dNum,$dName
             }
             "Vault" {
               $vId = $_.VaultId
-              $vName = $($mediaVaults | ?{$_.Id -eq $vId}).Name
+              $vName = $($mediaVaults | Where-Object {$_.Id -eq $vId}).Name
             "{0}: {1}" -f $_,$vName}
             default {"Lost in Space"}
           }
@@ -3549,7 +3296,7 @@ If ($showTpMp) {
           } Else {
             $_.ExpirationDate
           }
-      }} | Sort "Last Write" | ConvertTo-HTML -Fragment
+      }} | Sort-Object "Last Write" | ConvertTo-HTML -Fragment
       $bodyTpPool += $subHead01 + "All Tapes in Media Pool: " + $mp.Name + $subHead02 + $expTapes
     }
   }
@@ -3558,13 +3305,13 @@ If ($showTpMp) {
 # Get all Tapes in each Vault
 $bodyTpVlt = $null
 If ($showTpVlt) {
-  ForEach ($vlt in ($mediaVaults | Sort Name)) {
-    $expTapes = @($mediaTapes | where {($_.Location.VaultId -eq $vlt.Id)})
-    if($expTapes.Count -gt 0) {
-      $expTapes = $expTapes | Select Name, Barcode,
+  ForEach ($vlt in ($mediaVaults | Sort-Object Name)) {
+    $expTapes = @($mediaTapes | Where-Object {($_.Location.VaultId -eq $vlt.Id)})
+    If ($expTapes.Count -gt 0) {
+      $expTapes = $expTapes | Select-Object Name, Barcode,
       @{Name="Media Pool"; Expression = {
           $poolId = $_.MediaPoolId
-          ($mediaPools | ?{$_.Id -eq $poolId}).Name     
+          ($mediaPools | Where-Object {$_.Id -eq $poolId}).Name
       }},
       @{Name="Media Set"; Expression = {$_.MediaSet}}, @{Name="Sequence #"; Expression = {$_.SequenceNumber}},
       @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
@@ -3576,7 +3323,7 @@ If ($showTpVlt) {
           } Else {
             $_.ExpirationDate
           }
-      }} | Sort Name | ConvertTo-HTML -Fragment
+      }} | Sort-Object Name | ConvertTo-HTML -Fragment
       $bodyTpVlt += $subHead01 + "All Tapes in Vault: " + $vlt.Name + $subHead02 + $expTapes
     }
   }
@@ -3585,12 +3332,12 @@ If ($showTpVlt) {
 # Get all Expired Tapes
 $bodyExpTp = $null
 If ($showExpTp) {
-  $expTapes = @($mediaTapes | where {($_.IsExpired -eq $True)})
-  if($expTapes.Count -gt 0) {
-    $expTapes = $expTapes | Select Name, Barcode,
+  $expTapes = @($mediaTapes | Where-Object {($_.IsExpired -eq $True)})
+  If ($expTapes.Count -gt 0) {
+    $expTapes = $expTapes | Select-Object Name, Barcode,
     @{Name="Media Pool"; Expression = {
         $poolId = $_.MediaPoolId
-        ($mediaPools | ?{$_.Id -eq $poolId}).Name     
+        ($mediaPools | Where-Object {$_.Id -eq $poolId}).Name
     }},
     @{Name="Media Set"; Expression = {$_.MediaSet}}, @{Name="Sequence #"; Expression = {$_.SequenceNumber}},
     @{Name="Location"; Expression = {
@@ -3598,28 +3345,28 @@ If ($showExpTp) {
           "None" {"Offline"}
           "Slot" {
             $lId = $_.LibraryId
-            $lName = $($mediaLibs | ?{$_.Id -eq $lId}).Name
+            $lName = $($mediaLibs | Where-Object {$_.Id -eq $lId}).Name
             [int]$slot = $_.SlotAddress + 1
             "{0} : {1} {2}" -f $lName,$_,$slot
           }
           "Drive" {
             $lId = $_.LibraryId
             $dId = $_.DriveId
-            $lName = $($mediaLibs | ?{$_.Id -eq $lId}).Name
-            $dName = $($mediaDrives | ?{$_.Id -eq $dId}).Name
+            $lName = $($mediaLibs | Where-Object {$_.Id -eq $lId}).Name
+            $dName = $($mediaDrives | Where-Object {$_.Id -eq $dId}).Name
             [int]$dNum = $_.Location.DriveAddress + 1
             "{0} : {1} {2} (Drive ID: {3})" -f $lName,$_,$dNum,$dName
           }
           "Vault" {
             $vId = $_.VaultId
-            $vName = $($mediaVaults | ?{$_.Id -eq $vId}).Name
+            $vName = $($mediaVaults | Where-Object {$_.Id -eq $vId}).Name
           "{0}: {1}" -f $_,$vName}
           default {"Lost in Space"}
         }
     }},
     @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
     @{Name="Free (GB)"; Expression = {[Math]::Round([Decimal]$_.Free/1GB, 2)}},
-    @{Name="Last Write"; Expression = {$_.LastWriteTime}} | Sort Name | ConvertTo-HTML -Fragment
+    @{Name="Last Write"; Expression = {$_.LastWriteTime}} | Sort-Object Name | ConvertTo-HTML -Fragment
     $bodyExpTp = $subHead01 + "All Expired Tapes" + $subHead02 + $expTapes
   }
 }
@@ -3627,38 +3374,38 @@ If ($showExpTp) {
 # Get Expired Tapes in each Custom Media Pool
 $bodyTpExpPool = $null
 If ($showExpTpMp) {
-  ForEach ($mp in ($mediaPools | ?{$_.Type -eq "Custom"} | Sort Name)) {
-    $expTapes = @($mediaTapes | where {($_.MediaPoolId -eq $mp.Id -and $_.IsExpired -eq $True)})
-    if($expTapes.Count -gt 0) {
-      $expTapes = $expTapes | Select Name, Barcode,
+  ForEach ($mp in ($mediaPools | Where-Object {$_.Type -eq "Custom"} | Sort-Object Name)) {
+    $expTapes = @($mediaTapes | Where-Object {($_.MediaPoolId -eq $mp.Id -and $_.IsExpired -eq $True)})
+    If ($expTapes.Count -gt 0) {
+      $expTapes = $expTapes | Select-Object Name, Barcode,
       @{Name="Media Set"; Expression = {$_.MediaSet}}, @{Name="Sequence #"; Expression = {$_.SequenceNumber}},
       @{Name="Location"; Expression = {
           switch ($_.Location) {
             "None" {"Offline"}
             "Slot" {
               $lId = $_.LibraryId
-              $lName = $($mediaLibs | ?{$_.Id -eq $lId}).Name
+              $lName = $($mediaLibs | Where-Object {$_.Id -eq $lId}).Name
               [int]$slot = $_.SlotAddress + 1
               "{0} : {1} {2}" -f $lName,$_,$slot
             }
             "Drive" {
               $lId = $_.LibraryId
               $dId = $_.DriveId
-              $lName = $($mediaLibs | ?{$_.Id -eq $lId}).Name
-              $dName = $($mediaDrives | ?{$_.Id -eq $dId}).Name
+              $lName = $($mediaLibs | Where-Object {$_.Id -eq $lId}).Name
+              $dName = $($mediaDrives | Where-Object {$_.Id -eq $dId}).Name
               [int]$dNum = $_.Location.DriveAddress + 1
               "{0} : {1} {2} (Drive ID: {3})" -f $lName,$_,$dNum,$dName
             }
             "Vault" {
               $vId = $_.VaultId
-              $vName = $($mediaVaults | ?{$_.Id -eq $vId}).Name
+              $vName = $($mediaVaults | Where-Object {$_.Id -eq $vId}).Name
             "{0}: {1}" -f $_,$vName}
             default {"Lost in Space"}
           }
       }},
       @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
       @{Name="Free (GB)"; Expression = {[Math]::Round([Decimal]$_.Free/1GB, 2)}},
-      @{Name="Last Write"; Expression = {$_.LastWriteTime}} | Sort "Last Write" | ConvertTo-HTML -Fragment
+      @{Name="Last Write"; Expression = {$_.LastWriteTime}} | Sort-Object "Last Write" | ConvertTo-HTML -Fragment
       $bodyTpExpPool += $subHead01 + "Expired Tapes in Media Pool: " + $mp.Name + $subHead02 + $expTapes
     }
   }
@@ -3667,18 +3414,18 @@ If ($showExpTpMp) {
 # Get Expired Tapes in each Vault
 $bodyTpExpVlt = $null
 If ($showExpTpVlt) {
-  ForEach ($vlt in ($mediaVaults | Sort Name)) {
-    $expTapes = @($mediaTapes | where {($_.Location.VaultId -eq $vlt.Id -and $_.IsExpired -eq $True)})
-    if($expTapes.Count -gt 0) {
-      $expTapes = $expTapes | Select Name, Barcode,
+  ForEach ($vlt in ($mediaVaults | Sort-Object Name)) {
+    $expTapes = @($mediaTapes | Where-Object {($_.Location.VaultId -eq $vlt.Id -and $_.IsExpired -eq $True)})
+    If ($expTapes.Count -gt 0) {
+      $expTapes = $expTapes | Select-Object Name, Barcode,
       @{Name="Media Pool"; Expression = {
           $poolId = $_.MediaPoolId
-          ($mediaPools | ?{$_.Id -eq $poolId}).Name     
+          ($mediaPools | Where-Object {$_.Id -eq $poolId}).Name
       }},
       @{Name="Media Set"; Expression = {$_.MediaSet}}, @{Name="Sequence #"; Expression = {$_.SequenceNumber}},
       @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
       @{Name="Free (GB)"; Expression = {[Math]::Round([Decimal]$_.Free/1GB, 2)}},
-      @{Name="Last Write"; Expression = {$_.LastWriteTime}} | Sort "Last Write" | ConvertTo-HTML -Fragment
+      @{Name="Last Write"; Expression = {$_.LastWriteTime}} | Sort-Object "Last Write" | ConvertTo-HTML -Fragment
       $bodyTpExpVlt += $subHead01 + "Expired Tapes in Vault: " + $vlt.Name + $subHead02 + $expTapes
     }
   }
@@ -3687,12 +3434,12 @@ If ($showExpTpVlt) {
 # Get all Tapes written to within time frame
 $bodyTpWrt = $null
 If ($showTpWrt) {
-  $expTapes = @($mediaTapes | ?{$_.LastWriteTime -ge (Get-Date).AddHours(-$HourstoCheck)})
-  if($expTapes.Count -gt 0) {
-    $expTapes = $expTapes | Select Name, Barcode,
+  $expTapes = @($mediaTapes | Where-Object {$_.LastWriteTime -ge (Get-Date).AddHours(-$HourstoCheck)})
+  If ($expTapes.Count -gt 0) {
+    $expTapes = $expTapes | Select-Object Name, Barcode,
     @{Name="Media Pool"; Expression = {
         $poolId = $_.MediaPoolId
-        ($mediaPools | ?{$_.Id -eq $poolId}).Name     
+        ($mediaPools | Where-Object {$_.Id -eq $poolId}).Name
     }},
     @{Name="Media Set"; Expression = {$_.MediaSet}}, @{Name="Sequence #"; Expression = {$_.SequenceNumber}},
     @{Name="Location"; Expression = {
@@ -3700,21 +3447,21 @@ If ($showTpWrt) {
           "None" {"Offline"}
           "Slot" {
             $lId = $_.LibraryId
-            $lName = $($mediaLibs | ?{$_.Id -eq $lId}).Name
+            $lName = $($mediaLibs | Where-Object {$_.Id -eq $lId}).Name
             [int]$slot = $_.SlotAddress + 1
             "{0} : {1} {2}" -f $lName,$_,$slot
           }
           "Drive" {
             $lId = $_.LibraryId
             $dId = $_.DriveId
-            $lName = $($mediaLibs | ?{$_.Id -eq $lId}).Name
-            $dName = $($mediaDrives | ?{$_.Id -eq $dId}).Name
+            $lName = $($mediaLibs | Where-Object {$_.Id -eq $lId}).Name
+            $dName = $($mediaDrives | Where-Object {$_.Id -eq $dId}).Name
             [int]$dNum = $_.Location.DriveAddress + 1
             "{0} : {1} {2} (Drive ID: {3})" -f $lName,$_,$dNum,$dName
           }
           "Vault" {
             $vId = $_.VaultId
-            $vName = $($mediaVaults | ?{$_.Id -eq $vId}).Name
+            $vName = $($mediaVaults | Where-Object {$_.Id -eq $vId}).Name
           "{0}: {1}" -f $_,$vName}
           default {"Lost in Space"}
         }
@@ -3728,7 +3475,7 @@ If ($showTpWrt) {
         } Else {
           $_.ExpirationDate
         }
-    }} | Sort "Last Write" | ConvertTo-HTML -Fragment
+    }} | Sort-Object "Last Write" | ConvertTo-HTML -Fragment
     $bodyTpWrt = $subHead01 + "All Tapes Written" + $subHead02 + $expTapes
   }
 }
@@ -3749,7 +3496,7 @@ If ($showSummaryEp) {
   } Else {
     $total = "Total Sessions"
   }
-  $arrSummaryEp =  $vbrEPObj | Select @{Name=$total; Expression = {$_.Sessions}},
+  $arrSummaryEp =  $vbrEPObj | Select-Object @{Name=$total; Expression = {$_.Sessions}},
     @{Name="Running"; Expression = {$_.Running}}, @{Name="Successful"; Expression = {$_.Successful}},
     @{Name="Warnings"; Expression = {$_.Warning}}, @{Name="Failures"; Expression = {$_.Fails}}
   $bodySummaryEp = $arrSummaryEp | ConvertTo-HTML -Fragment
@@ -3769,11 +3516,11 @@ If ($showSummaryEp) {
 $bodyJobsEp = $null
 If ($showJobsEp) {
   If ($allJobsEp.count -gt 0) {
-    $bodyJobsEp = $allJobsEp | Sort Name | Select @{Name="Job Name"; Expression = {$_.Name}},
+    $bodyJobsEp = $allJobsEp | Sort-Object Name | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
       @{Name="Description"; Expression = {$_.Description}},
       @{Name="Enabled"; Expression = {$_.JobEnabled}},
       @{Name="Status"; Expression = {(Get-VBRComputerBackupJobSession -Name $_.Name)[0].state}},
-      @{Name="Target Repo"; Expression = {$_.BackupRepository.Name}}, 
+      @{Name="Target Repo"; Expression = {$_.BackupRepository.Name}},
       @{Name="Next Run"; Expression = {
                 If ($_.ScheduleEnabled -eq $false) {"<not scheduled>"}
                 Else {(Get-VBRJobScheduleOptions -Job $_).nextrun}}},
@@ -3786,7 +3533,7 @@ If ($showJobsEp) {
 $bodyJobSizeEp = $null
 If ($showBackupSizeEp) {
   If ($backupsEp.count -gt 0) {
-    $bodyJobSizeEp = Get-BackupSize -backups $backupsEp | Sort JobName | Select @{Name="Job Name"; Expression = {$_.JobName}},
+    $bodyJobSizeEp = Get-BackupSize -backups $backupsEp | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
       @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
@@ -3801,7 +3548,7 @@ $arrAllSessEp = @()
 If ($showAllSessEp) {
   If ($sessListEp.count -gt 0) {
     Foreach($job in $allJobsEp) {
-      $arrAllSessEp += $sessListEp | ?{$_.JobId -eq $job.Id} | Select @{Name="Job Name"; Expression = {$job.Name}},
+      $arrAllSessEp += $sessListEp | Where-Object {$_.JobId -eq $job.Id} | Select-Object @{Name="Job Name"; Expression = {$job.Name}},
         @{Name="State"; Expression = {$_.State}},@{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
         @{Name="Duration (HH:MM:SS)"; Expression = {
@@ -3821,7 +3568,7 @@ If ($showAllSessEp) {
         $allSessEpHead = $subHead01suc
       } Else {
         $allSessEpHead = $subHead01
-      }               
+      }
     $bodyAllSessEp = $allSessEpHead + "Agent Backup Sessions" + $subHead02 + $bodyAllSessEp
   }
 }
@@ -3831,10 +3578,10 @@ $bodyRunningEp = @()
 If ($showRunningEp) {
   If ($runningSessionsEp.count -gt 0) {
     Foreach($job in $allJobsEp) {
-      $bodyRunningEp += $runningSessionsEp | ?{$_.JobId -eq $job.Id} | Select @{Name="Job Name"; Expression = {$job.Name}},
+      $bodyRunningEp += $runningSessionsEp | Where-Object {$_.JobId -eq $job.Id} | Select-Object @{Name="Job Name"; Expression = {$job.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))}}
-    }               
+    }
     $bodyRunningEp = $bodyRunningEp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodyRunningEp = $subHead01 + "Running Agent Backup Jobs" + $subHead02 + $bodyRunningEp
   }
@@ -3852,7 +3599,7 @@ If ($showWarnFailEp) {
       $headerWFEp = "Agent Backup Sessions with Warnings or Failures"
     }
     Foreach($job in $allJobsEp) {
-      $arrSessWFEp += $sessWFEp | ?{$_.JobId -eq $job.Id} | Select @{Name="Job Name"; Expression = {$job.Name}},
+      $arrSessWFEp += $sessWFEp | Where-Object {$_.JobId -eq $job.Id} | Select-Object @{Name="Job Name"; Expression = {$job.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}}, @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $_.EndTime)}},
         Result
@@ -3866,7 +3613,7 @@ If ($showWarnFailEp) {
         $sessWFEpHead = $subHead01suc
       } Else {
         $sessWFEpHead = $subHead01
-      }             
+      }
     $bodySessWFEp = $sessWFEpHead + $headerWFEp + $subHead02 + $bodySessWFEp
   }
 }
@@ -3881,12 +3628,12 @@ If ($showSuccessEp) {
       $headerSuccEp = "Successful Agent Backup Sessions"
     }
     Foreach($job in $allJobsEp) {
-      $bodySessSuccEp += $successSessionsEp | ?{$_.JobId -eq $job.Id} | Select @{Name="Job Name"; Expression = {$job.Name}},
+      $bodySessSuccEp += $successSessionsEp | Where-Object {$_.JobId -eq $job.Id} | Select-Object @{Name="Job Name"; Expression = {$job.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}}, @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $_.EndTime)}},
         Result
     }
-    $bodySessSuccEp = $bodySessSuccEp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment             
+    $bodySessSuccEp = $bodySessSuccEp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodySessSuccEp = $subHead01suc + $headerSuccEp + $subHead02 + $bodySessSuccEp
   }
 }
@@ -3907,7 +3654,7 @@ If ($showSummarySb) {
   } Else {
     $total = "Total Sessions"
   }
-  $arrSummarySb =  $vbrMasterObj | Select @{Name=$total; Expression = {$_.Sessions}},
+  $arrSummarySb =  $vbrMasterObj | Select-Object @{Name=$total; Expression = {$_.Sessions}},
     @{Name="Running"; Expression = {$_.Running}}, @{Name="Successful"; Expression = {$_.Successful}},
     @{Name="Warnings"; Expression = {$_.Warning}}, @{Name="Failures"; Expression = {$_.Fails}}
   $bodySummarySb = $arrSummarySb | ConvertTo-HTML -Fragment
@@ -3929,7 +3676,7 @@ If ($showJobsSb) {
   If ($allJobsSb.count -gt 0) {
     $bodyJobsSb = @()
     Foreach($SbJob in $allJobsSb) {
-      $bodyJobsSb += $SbJob | Select @{Name="Job Name"; Expression = {$_.Name}},
+      $bodyJobsSb += $SbJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Enabled"; Expression = {$_.IsScheduleEnabled}},
         @{Name="Status"; Expression = {
           If ($_.GetLastState() -eq "Working") {
@@ -3939,19 +3686,19 @@ If ($showJobsSb) {
             $cStatus
           } Else {
             $_.GetLastState()
-          }             
+          }
         }},
-        @{Name="Virtual Lab"; Expression = {$(Get-VSBVirtualLab | Where {$_.Id -eq $SbJob.VirtualLabId}).Name}},
+        @{Name="Virtual Lab"; Expression = {$(Get-VSBVirtualLab | Where-Object {$_.Id -eq $SbJob.VirtualLabId}).Name}},
         @{Name="Linked Jobs"; Expression = {$($_.GetLinkedJobs()).Name -join ","}},
         @{Name="Next Run"; Expression = {
           If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
           ElseIf ($_.JobOptions.RunManually) {"<not scheduled>"}
           ElseIf ($_.ScheduleOptions.IsContinuous) {"<Continuous>"}
-          ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where {$_.Id -eq $SbJob.Info.ParentScheduleId}).Name + "]"}
+          ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where-Object {$_.Id -eq $SbJob.Info.ParentScheduleId}).Name + "]"}
           Else {$_.ScheduleOptions.NextRun}}},
         @{Name="Last Result"; Expression = {If ($_.GetLastResult() -eq "None"){""}Else{$_.GetLastResult()}}}
     }
-    $bodyJobsSb = $bodyJobsSb | Sort "Next Run" | ConvertTo-HTML -Fragment
+    $bodyJobsSb = $bodyJobsSb | Sort-Object "Next Run" | ConvertTo-HTML -Fragment
     $bodyJobsSb = $subHead01 + "SureBackup Job Status" + $subHead02 + $bodyJobsSb
   }
 }
@@ -3960,11 +3707,11 @@ If ($showJobsSb) {
 $bodyAllSessSb = $null
 If ($showAllSessSb) {
   If ($sessListSb.count -gt 0) {
-    $arrAllSessSb = $sessListSb | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+    $arrAllSessSb = $sessListSb | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="State"; Expression = {$_.State}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
-        
+
         @{Name="Duration (HH:MM:SS)"; Expression = {
           If ($_.EndTime -eq "1/1/1900 12:00:00 AM") {
             Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))
@@ -3990,13 +3737,13 @@ If ($showAllSessSb) {
 $bodyRunningSb = $null
 If ($showRunningSb) {
   If ($runningSessionsSb.count -gt 0) {
-    $bodyRunningSb = $runningSessionsSb | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+    $bodyRunningSb = $runningSessionsSb | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
       @{Name="Start Time"; Expression = {$_.CreationTime}},
       @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))}},
       @{Name="% Complete"; Expression = {$_.Progress}} | ConvertTo-HTML -Fragment
     $bodyRunningSb = $subHead01 + "Running SureBackup Jobs" + $subHead02 + $bodyRunningSb
   }
-} 
+}
 
 # Get SureBackup Sessions with Warnings or Failures
 $bodySessWFSb = $null
@@ -4008,7 +3755,7 @@ If ($showWarnFailSb) {
     } Else {
       $headerWF = "SureBackup Sessions with Warnings or Failures"
     }
-    $arrSessWFSb = $sessWF | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+    $arrSessWFSb = $sessWF | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $_.EndTime)}}, Result
@@ -4035,7 +3782,7 @@ If ($showSuccessSb) {
     } Else {
       $headerSucc = "Successful SureBackup Sessions"
     }
-    $bodySessSuccSb = $successSessionsSb | Sort Creationtime | Select @{Name="Job Name"; Expression = {$_.Name}},
+    $bodySessSuccSb = $successSessionsSb | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Start Time"; Expression = {$_.CreationTime}},
         @{Name="Stop Time"; Expression = {$_.EndTime}},
         @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $_.EndTime)}},
@@ -4048,16 +3795,16 @@ If ($showSuccessSb) {
 # Gather all SureBackup Tasks from Sessions within time frame
 $taskListSb = @()
 $taskListSb += $sessListSb | Get-VSBTaskSession
-$successTasksSb = @($taskListSb | ?{$_.Info.Result -eq "Success"})
-$wfTasksSb = @($taskListSb | ?{$_.Info.Result -match "Warning|Failed"})
+$successTasksSb = @($taskListSb | Where-Object {$_.Info.Result -eq "Success"})
+$wfTasksSb = @($taskListSb | Where-Object {$_.Info.Result -match "Warning|Failed"})
 $runningTasksSb = @()
-$runningTasksSb += $runningSessionsSb | Get-VSBTaskSession | ?{$_.Status -ne "Stopped"}
+$runningTasksSb += $runningSessionsSb | Get-VSBTaskSession | Where-Object {$_.Status -ne "Stopped"}
 
 # Get SureBackup Tasks
 $bodyAllTasksSb = $null
 If ($showAllTasksSb) {
   If ($taskListSb.count -gt 0) {
-    $arrAllTasksSb = $taskListSb | Select @{Name="VM Name"; Expression = {$_.Name}},
+    $arrAllTasksSb = $taskListSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
       @{Name="Job Name"; Expression = {$_.JobSession.JobName}},
       @{Name="Status"; Expression = {$_.Status}},
       @{Name="Start Time"; Expression = {$_.Info.StartTime}},
@@ -4080,7 +3827,7 @@ If ($showAllTasksSb) {
             $_.Info.Result
           }
       }}
-    $bodyAllTasksSb = $arrAllTasksSb | Sort "Start Time" | ConvertTo-HTML -Fragment
+    $bodyAllTasksSb = $arrAllTasksSb | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     If ($arrAllTasksSb.Result -match "Failed") {
         $allTasksSbHead = $subHead01err
       } ElseIf ($arrAllTasksSb.Result -match "Warning") {
@@ -4098,7 +3845,7 @@ If ($showAllTasksSb) {
 $bodyTasksRunningSb = $null
 If ($showRunningTasksSb) {
   If ($runningTasksSb.count -gt 0) {
-    $bodyTasksRunningSb = $runningTasksSb | Select @{Name="VM Name"; Expression = {$_.Name}},
+    $bodyTasksRunningSb = $runningTasksSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
       @{Name="Job Name"; Expression = {$_.JobSession.JobName}},
       @{Name="Start Time"; Expression = {$_.Info.StartTime}},
       @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.Info.StartTime $(Get-Date))}},
@@ -4106,7 +3853,7 @@ If ($showRunningTasksSb) {
       @{Name="Ping Test"; Expression = {$_.PingStatus}},
       @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
       @{Name="Validation Test"; Expression = {$_.VadiationTestStatus}},
-      Status | Sort "Start Time" | ConvertTo-HTML -Fragment
+      Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodyTasksRunningSb = $subHead01 + "Running SureBackup Tasks" + $subHead02 + $bodyTasksRunningSb
   }
 }
@@ -4115,7 +3862,7 @@ If ($showRunningTasksSb) {
 $bodyTaskWFSb = $null
 If ($showTaskWFSb) {
   If ($wfTasksSb.count -gt 0) {
-    $arrTaskWFSb = $wfTasksSb | Select @{Name="VM Name"; Expression = {$_.Name}},
+    $arrTaskWFSb = $wfTasksSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
       @{Name="Job Name"; Expression = {$_.JobSession.JobName}},
       @{Name="Start Time"; Expression = {$_.Info.StartTime}},
       @{Name="Stop Time"; Expression = {$_.Info.FinishTime}},
@@ -4125,7 +3872,7 @@ If ($showTaskWFSb) {
       @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
       @{Name="Validation Test"; Expression = {$_.VadiationTestStatus}},
       @{Name="Result"; Expression = {$_.Info.Result}}
-    $bodyTaskWFSb = $arrTaskWFSb | Sort "Start Time" | ConvertTo-HTML -Fragment
+    $bodyTaskWFSb = $arrTaskWFSb | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     If ($arrTaskWFSb.Result -match "Failed") {
         $taskWFSbHead = $subHead01err
       } ElseIf ($arrTaskWFSb.Result -match "Warning") {
@@ -4143,7 +3890,7 @@ If ($showTaskWFSb) {
 $bodyTaskSuccSb = $null
 If ($showTaskSuccessSb) {
   If ($successTasksSb.count -gt 0) {
-    $bodyTaskSuccSb = $successTasksSb | Select @{Name="VM Name"; Expression = {$_.Name}},
+    $bodyTaskSuccSb = $successTasksSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
       @{Name="Job Name"; Expression = {$_.JobSession.JobName}},
       @{Name="Start Time"; Expression = {$_.Info.StartTime}},
       @{Name="Stop Time"; Expression = {$_.Info.FinishTime}},
@@ -4152,7 +3899,7 @@ If ($showTaskSuccessSb) {
       @{Name="Ping Test"; Expression = {$_.PingStatus}},
       @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
       @{Name="Validation Test"; Expression = {$_.VadiationTestStatus}},
-      @{Name="Result"; Expression = {$_.Info.Result}} | Sort "Start Time" | ConvertTo-HTML -Fragment
+      @{Name="Result"; Expression = {$_.Info.Result}} | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodyTaskSuccSb = $subHead01suc + "Successful SureBackup Tasks" + $subHead02 + $bodyTaskSuccSb
   }
 }
@@ -4171,7 +3918,7 @@ If ($showSummaryConfig) {
     "Next Run" = $configBackup.NextRun
   }
   $vbrConfigObj = New-Object -TypeName PSObject -Property $vbrConfigHash
-  $bodySummaryConfig = $vbrConfigObj | Select Enabled, Status, Target, Schedule, "Restore Points", "Next Run", Encrypted, "Last Result" | ConvertTo-HTML -Fragment  
+  $bodySummaryConfig = $vbrConfigObj | Select-Object Enabled, Status, Target, Schedule, "Restore Points", "Next Run", Encrypted, "Last Result" | ConvertTo-HTML -Fragment
   If ($configBackup.LastResult -eq "Warning" -or !$configBackup.Enabled) {
     $configHead = $subHead01war
   } ElseIf ($configBackup.LastResult -eq "Success") {
@@ -4180,27 +3927,27 @@ If ($showSummaryConfig) {
     $configHead = $subHead01err
   } Else {
     $configHead = $subHead01
-  }  
+  }
   $bodySummaryConfig = $configHead + "Configuration Backup Status" + $subHead02 + $bodySummaryConfig
 }
 
 # Get Proxy Info
 $bodyProxy = $null
 If ($showProxy) {
-  If ($proxyList -ne $null) {
-    $arrProxy = $proxyList | Get-VBRProxyInfo | Select @{Name="Proxy Name"; Expression = {$_.ProxyName}},
+  If ($proxyList.count -gt 0) {
+    $arrProxy = $proxyList | Get-VBRProxyInfo | Select-Object @{Name="Proxy Name"; Expression = {$_.ProxyName}},
       @{Name="Transport Mode"; Expression = {$_.tMode}}, @{Name="Max Tasks"; Expression = {$_.MaxTasks}},
       @{Name="Proxy Host"; Expression = {$_.RealName}}, @{Name="Host Type"; Expression = {$_.pType}},
       Enabled, @{Name="IP Address"; Expression = {$_.IP}},
       @{Name="RT (ms)"; Expression = {$_.Response}}, Status
-    $bodyProxy = $arrProxy | Sort "Proxy Host" |  ConvertTo-HTML -Fragment
+    $bodyProxy = $arrProxy | Sort-Object "Proxy Host" |  ConvertTo-HTML -Fragment
     If ($arrProxy.Status -match "Dead") {
       $proxyHead = $subHead01err
     } ElseIf ($arrProxy -match "Alive") {
       $proxyHead = $subHead01suc
     } Else {
       $proxyHead = $subHead01
-    }    
+    }
     $bodyProxy = $proxyHead + "Proxy Details" + $subHead02 + $bodyProxy
   }
 }
@@ -4208,25 +3955,25 @@ If ($showProxy) {
 # Get Repository Info
 $bodyRepo = $null
 If ($showRepo) {
-  If ($repoList -ne $null) {
-    $arrRepo = $repoList | Get-VBRRepoInfo | Select @{Name="Repository Name"; Expression = {$_.Target}},
-      @{Name="Type"; Expression = {$_.rType}}, 
+  If ($repoList.count -gt 0) {
+    $arrRepo = $repoList | Get-VBRRepoInfo | Select-Object @{Name="Repository Name"; Expression = {$_.Target}},
+      @{Name="Type"; Expression = {$_.rType}},
       @{Name="Max Tasks"; Expression = {$_.MaxTasks}},
-      @{Name="Host"; Expression = {$_.RepoHost}}, 
-      @{Name="Path"; Expression = {$_.Storepath}}, 
-      @{Name="Backups (GB)"; Expression = {$_.StorageBackup}}, 
-      @{Name="Other data (GB)"; Expression = {$_.StorageOther}}, 
+      @{Name="Host"; Expression = {$_.RepoHost}},
+      @{Name="Path"; Expression = {$_.Storepath}},
+      @{Name="Backups (GB)"; Expression = {$_.StorageBackup}},
+      @{Name="Other data (GB)"; Expression = {$_.StorageOther}},
       @{Name="Free (GB)"; Expression = {$_.StorageFree}},
       @{Name="Total (GB)"; Expression = {$_.StorageTotal}},
       @{Name="Free (%)"; Expression = {$_.FreePercentage}},
       @{Name="Status"; Expression = {
         If ($_.FreePercentage -lt $repoCritical) {"Critical"}
-        ElseIf ($_.StorageTotal -eq 0 -and $_.rtype -ne "SAN Snapshot")  {"Warning"} 
+        ElseIf ($_.StorageTotal -eq 0 -and $_.rtype -ne "SAN Snapshot")  {"Warning"}
         ElseIf ($_.FreePercentage -lt $repoWarn) {"Warning"}
         ElseIf ($_.FreePercentage -eq "Unknown") {"Unknown"}
         Else {"OK"}}
       }
-    $bodyRepo = $arrRepo | Sort "Repository Name" | ConvertTo-HTML -Fragment       
+    $bodyRepo = $arrRepo | Sort-Object "Repository Name" | ConvertTo-HTML -Fragment
     If ($arrRepo.status -match "Critical") {
       $repoHead = $subHead01err
     } ElseIf ($arrRepo.status -match "Warning|Unknown") {
@@ -4235,24 +3982,24 @@ If ($showRepo) {
       $repoHead = $subHead01suc
     } Else {
       $repoHead = $subHead01
-    }    
+    }
     $bodyRepo = $repoHead + "Repository Details" + $subHead02 + $bodyRepo
   }
 }
 # Get Scale Out Repository Info
 $bodySORepo = $null
 If ($showRepo) {
-  If ($repoListSo -ne $null) {
-    $arrSORepo = $repoListSo | Get-VBRSORepoInfo | Select @{Name="Scale Out Repository Name"; Expression = {$_.SOTarget}},
-      @{Name="Member Name"; Expression = {$_.Target}}, 
+  If ($repoListSo.count -gt 0) {
+    $arrSORepo = $repoListSo | Get-VBRSORepoInfo | Select-Object @{Name="Scale Out Repository Name"; Expression = {$_.SOTarget}},
+      @{Name="Member Name"; Expression = {$_.Target}},
 	  @{Name="Type"; Expression = {$_.rType}},
-      @{Name="Max Tasks"; Expression = {$_.MaxTasks}}, 
+      @{Name="Max Tasks"; Expression = {$_.MaxTasks}},
 	  @{Name="Host"; Expression = {$_.RepoHost}},
-      @{Name="Path"; Expression = {$_.Storepath}}, 
-      @{Name="Backups (GB)"; Expression = {$_.StorageBackup}}, 
+      @{Name="Path"; Expression = {$_.Storepath}},
+      @{Name="Backups (GB)"; Expression = {$_.StorageBackup}},
       @{Name="Other data (GB)"; Expression = {$_.StorageOther}},
 	  @{Name="Free (GB)"; Expression = {$_.StorageFree}},
-      @{Name="Total (GB)"; Expression = {$_.StorageTotal}}, 
+      @{Name="Total (GB)"; Expression = {$_.StorageTotal}},
 	  @{Name="Free (%)"; Expression = {$_.FreePercentage}},
       @{Name="Status"; Expression = {
         If ($_.FreePercentage -lt $repoCritical) {"Critical"}
@@ -4262,7 +4009,7 @@ If ($showRepo) {
         Else {"OK"}}
 
       }
-    $bodySORepo = $arrSORepo | Sort "Scale Out Repository Name", "Member Repository Name" | ConvertTo-HTML -Fragment
+    $bodySORepo = $arrSORepo | Sort-Object "Scale Out Repository Name", "Member Repository Name" | ConvertTo-HTML -Fragment
     If ($arrSORepo.status -match "Critical") {
       $sorepoHead = $subHead01err
     } ElseIf ($arrSORepo.status -match "Warning|Unknown") {
@@ -4279,8 +4026,8 @@ If ($showRepo) {
 # Get Repository Agent User Permissions
 $bodyRepoPerms = $null
 If ($showRepoPerms){
-  If ($repoList -ne $null -or $repoListSo -ne $null) {
-    $bodyRepoPerms = Get-RepoPermissions | Select Name, "Encryption Enabled", "Permission Type", Users | Sort Name | ConvertTo-HTML -Fragment
+  If ($repoList.count -gt 0 -or $repoListSo.count -gt 0) {
+    $bodyRepoPerms = Get-RepoPermission | Select-Object Name, "Encryption Enabled", "Permission Type", Users | Sort-Object Name | ConvertTo-HTML -Fragment
     $bodyRepoPerms = $subHead01 + "Repository Permissions for Agent Jobs" + $subHead02 + $bodyRepoPerms
   }
 }
@@ -4288,8 +4035,8 @@ If ($showRepoPerms){
 # Get Replica Target Info
 $bodyReplica = $null
 If ($showReplicaTarget) {
-  If ($allJobsRp -ne $null) {
-    $repTargets = $allJobsRp | Get-VBRReplicaTarget | Select @{Name="Replica Target"; Expression = {$_.Target}}, Datastore,
+  If ($allJobsRp.count -gt 0) {
+    $repTargets = $allJobsRp | Get-VBRReplicaTarget | Select-Object @{Name="Replica Target"; Expression = {$_.Target}}, Datastore,
       @{Name="Free (GB)"; Expression = {$_.StorageFree}}, @{Name="Total (GB)"; Expression = {$_.StorageTotal}},
       @{Name="Free (%)"; Expression = {$_.FreePercentage}},
       @{Name="Status"; Expression = {
@@ -4299,7 +4046,7 @@ If ($showReplicaTarget) {
         ElseIf ($_.FreePercentage -eq "Unknown") {"Unknown"}
         Else {"OK"}
         }
-      } | Sort "Replica Target"
+      } | Sort-Object "Replica Target"
     $bodyReplica = $repTargets | ConvertTo-HTML -Fragment
     If ($repTargets.status -match "Critical") {
       $reptarHead = $subHead01err
@@ -4309,7 +4056,7 @@ If ($showReplicaTarget) {
       $reptarHead = $subHead01suc
     } Else {
       $reptarHead = $subHead01
-    }    
+    }
     $bodyReplica = $reptarHead + "Replica Target Details" + $subHead02 + $bodyReplica
   }
 }
@@ -4317,13 +4064,13 @@ If ($showReplicaTarget) {
 # Get Veeam Services Info
 $bodyServices = $null
 If ($showServices) {
-  $vServers = Get-VeeamWinServers
-  $vServices = Get-VeeamServices $vServers
-  If ($hideRunningSvc) {$vServices = $vServices | ?{$_.Status -ne "Running"}}
-  If ($vServices -ne $null) {
-    $vServices = $vServices | Select "Server Name", "Service Name",
+  $vServers = Get-VeeamWinServer
+  $vServices = Get-VeeamService $vServers
+  If ($hideRunningSvc) {$vServices = $vServices | Where-Object {$_.Status -ne "Running"}}
+  If ($vServices.count -gt 0) {
+    $vServices = $vServices | Select-Object "Server Name", "Service Name",
       @{Name="Status"; Expression = {If ($_.Status -eq "Stopped"){"Not Running"} Else {$_.Status}}}
-    $bodyServices = $vServices | Sort "Server Name", "Service Name" | ConvertTo-HTML -Fragment
+    $bodyServices = $vServices | Sort-Object "Server Name", "Service Name" | ConvertTo-HTML -Fragment
     If ($vServices.status -match "Not Running") {
       $svcHead = $subHead01err
     } ElseIf ($vServices.status -notmatch "Running") {
@@ -4333,39 +4080,46 @@ If ($showServices) {
     } Else {
       $svcHead = $subHead01
     }
-    $bodyServices = $svcHead + "Veeam Services (Windows)" + $subHead02 + $bodyServices        
+    $bodyServices = $svcHead + "Veeam Services (Windows)" + $subHead02 + $bodyServices
   }
 }
 
 # Get License Info
 $bodyLicense = $null
 If ($showLicExp) {
-  $arrLicense = Get-VeeamSupportDate $vbrServer | Select @{Name="Expiry Date"; Expression = {$_.ExpDate}},
+  $arrLicense = Get-VeeamSupportDate $vbrServer | Select-Object @{Name = "Type"; Expression = { $_.LicType } },
+    @{Name="Expiry Date"; Expression = {$_.ExpDate}},
     @{Name="Days Remaining"; Expression = {$_.DaysRemain}}, `
     @{Name="Status"; Expression = {
-      If ($_.DaysRemain -lt $licenseCritical) {"Critical"}
+      If ($_.LicType -eq "Evaluation") {"OK"}
+      ElseIf ($_.DaysRemain -lt $licenseCritical) {"Critical"}
       ElseIf ($_.DaysRemain -lt $licenseWarn) {"Warning"}
       ElseIf ($_.DaysRemain -eq "Failed") {"Failed"}
       Else {"OK"}}
-    }  
+    }
   $bodyLicense = $arrLicense | ConvertTo-HTML -Fragment
-  If ($arrLicense.Status -eq "OK") {
-    $licHead = $subHead01suc
-  } ElseIf ($arrLicense.Status -eq "Warning") {
-    $licHead = $subHead01war
-  } Else {
-    $licHead = $subHead01err
-  }
+    If ($arrLicense.Type -eq "Evaluation") {
+        $licHead = $subHead01inf
+    } Else {
+      If ($arrLicense.Status -eq "OK") {
+        $licHead = $subHead01suc
+      } ElseIf ($arrLicense.Status -eq "Warning") {
+        $licHead = $subHead01war
+      } Else {
+        $licHead = $subHead01err
+      }
+    }
   $bodyLicense = $licHead + "License/Support Renewal Date" + $subHead02 + $bodyLicense
 }
 
+
 # Combine HTML Output
 $htmlOutput = $headerObj + $bodyTop + $bodySummaryProtect + $bodySummaryBK + $bodySummaryRp + $bodySummaryBc + $bodySummaryTp + $bodySummaryEp + $bodySummarySb
-  
+
 If ($bodySummaryProtect + $bodySummaryBK + $bodySummaryRp + $bodySummaryBc + $bodySummaryTp + $bodySummaryEp + $bodySummarySb) {
   $htmlOutput += $HTMLbreak
 }
-  
+
 $htmlOutput += $bodyMissing + $bodyWarning + $bodySuccess
 
 If ($bodyMissing + $bodySuccess + $bodyWarning) {
@@ -4477,13 +4231,13 @@ If ($sendEmail) {
     $msg.Body = $body
     $tempFile = "$env:TEMP\$($rptTitle)_$(Get-Date -format yyyyMMdd_HHmmss).htm"
     $htmlOutput | Out-File $tempFile
-    $attachment = new-object System.Net.Mail.Attachment $tempFile
+    $attachment = New-Object System.Net.Mail.Attachment $tempFile
     $msg.Attachments.Add($attachment)
   } Else {
     $body = $htmlOutput
     $msg.Body = $body
     $msg.isBodyhtml = $true
-  }       
+  }
   $smtp.send($msg)
   If ($emailAttach) {
     $attachment.dispose()
@@ -4492,7 +4246,7 @@ If ($sendEmail) {
 }
 
 # Save HTML Report to File
-If ($saveHTML) {       
+If ($saveHTML) {
   $htmlOutput | Out-File $pathHTML
   If ($launchHTML) {
     Invoke-Item $pathHTML
